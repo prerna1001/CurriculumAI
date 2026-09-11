@@ -47,6 +47,8 @@ export default function Home() {
     null,
   );
   const [error, setError] = useState<string | null>(null);
+  // The side rail is only worth its width once there is history to put in it.
+  const [hasEvals, setHasEvals] = useState(false);
 
   const searchCount = previousOrder ? 2 : result ? 1 : 0;
   const latest = selections.at(-1) ?? null;
@@ -132,7 +134,13 @@ export default function Home() {
   }
 
   return (
-    <div className="mx-auto grid max-w-[764px] grid-cols-1 gap-12 px-6 pt-16 pb-24 xl:max-w-[1136px] xl:grid-cols-[764px_300px]">
+    <div
+      className={`mx-auto grid grid-cols-1 gap-12 px-6 pt-16 pb-24 ${
+        hasEvals
+          ? "max-w-[764px] xl:max-w-[1136px] xl:grid-cols-[764px_300px]"
+          : "max-w-[764px]"
+      }`}
+    >
       <main>
         <header className="flex flex-col gap-3.5">
           <div className="flex items-center gap-2.5">
@@ -220,6 +228,49 @@ export default function Home() {
             Searching the live web and drafting candidates — this takes a
             moment.
           </p>
+        )}
+
+        {!result && selections.length === 0 && busy === null && (
+          <section
+            className="mt-16 grid grid-cols-1 gap-8 border-t pt-7 sm:grid-cols-3"
+            style={{ borderColor: "var(--rule)" }}
+          >
+            {[
+              {
+                n: "01",
+                title: "Four sourced topics",
+                body: "Searched from the live web, each one carrying the source it came from.",
+              },
+              {
+                n: "02",
+                title: "You choose",
+                body: "Your picks are the training signal — no forms, no settings to tune.",
+              },
+              {
+                n: "03",
+                title: "It searches differently",
+                body: "Next time the ranking moves and the query itself is rewritten.",
+              },
+            ].map((step) => (
+              <div key={step.n} className="flex flex-col gap-2">
+                <span
+                  className="mono text-[11px]"
+                  style={{ color: "var(--accent)" }}
+                >
+                  {step.n}
+                </span>
+                <h2 className="serif m-0 text-[17px] leading-[1.3] font-semibold">
+                  {step.title}
+                </h2>
+                <p
+                  className="m-0 text-[13px] leading-[1.6]"
+                  style={{ color: "var(--ink-3)", textWrap: "pretty" }}
+                >
+                  {step.body}
+                </p>
+              </div>
+            ))}
+          </section>
         )}
 
         {result && (
@@ -511,10 +562,20 @@ export default function Home() {
         )}
       </main>
 
-      {/* The panel grows with history, so cap it and scroll rather than
-          letting it run off the bottom of a short screen. */}
-      <div className="xl:sticky xl:top-16 xl:max-h-[calc(100vh-8rem)] xl:self-start xl:overflow-x-hidden xl:overflow-y-auto">
-        <ImprovementPanel refreshKey={latest?.profile_version ?? 0} />
+      {/* Always mounted so it can report whether there is anything to show;
+          the rail only takes up space once there is. It grows with history, so
+          cap it and scroll rather than running off the bottom of a short screen. */}
+      <div
+        className={
+          hasEvals
+            ? "xl:sticky xl:top-16 xl:max-h-[calc(100vh-8rem)] xl:self-start xl:overflow-x-hidden xl:overflow-y-auto"
+            : "hidden"
+        }
+      >
+        <ImprovementPanel
+          refreshKey={latest?.profile_version ?? 0}
+          onData={setHasEvals}
+        />
       </div>
     </div>
   );

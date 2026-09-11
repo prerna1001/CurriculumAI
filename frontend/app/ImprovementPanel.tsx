@@ -30,8 +30,11 @@ const UP = "#2f8a63";
 
 export default function ImprovementPanel({
   refreshKey,
+  onData,
 }: {
   refreshKey: number;
+  /** Lets the page collapse the side rail when there is nothing to show. */
+  onData?: (hasData: boolean) => void;
 }) {
   const [data, setData] = useState<EvalsResponse | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -39,11 +42,15 @@ export default function ImprovementPanel({
   useEffect(() => {
     let cancelled = false;
     evals().then((next) => {
-      if (!cancelled) setData(next);
+      if (cancelled) return;
+      setData(next);
+      onData?.(next !== null && next.selections > 0);
     });
     return () => {
       cancelled = true;
     };
+    // onData is a setState wrapper; including it would refetch on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey]);
 
   useEffect(() => {
