@@ -119,7 +119,9 @@ def _publish_via_one(publication_key: str, artifact: Artifact) -> Receipt:
     action_id = _require("ONE_ACTION_ID")
     connection_key = _require("ONE_CONNECTION_KEY")
 
-    env = {**os.environ, "ONE_SECRET": _require("ONE_SECRET")}
+    # ONE_SECRET is only needed for headless use. If `one login` has already
+    # stored credentials on this machine, the CLI authenticates without it.
+    env = dict(os.environ)
 
     tmp_dir: tempfile.TemporaryDirectory | None = None
     upload_path: Path | None = None
