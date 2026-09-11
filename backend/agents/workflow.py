@@ -97,6 +97,7 @@ def research_candidates(
         task_description=(
             f"{profile_instruction(profile)}\n\n"
             f"Create exactly four {level} curriculum topic cards for {subject}. "
+            "Return exactly two case_study cards, one theory card, and one project card. "
             "Use only the evidence URLs below. Each card must use one of theory, case_study, or project. "
             "Return JSON only: {\"cards\":[{\"title\":...,\"description\":...,"
             "\"teaching_style\":...,\"source_url\":...,\"why_suggested\":...}]}.\n\n"
@@ -128,6 +129,9 @@ def research_candidates(
                 evidence_text=evidence_by_url[source_url],
             )
         )
+    style_counts = {style: sum(idea.teaching_style == style for idea in ideas) for style in VALID_STYLES}
+    if style_counts != {"theory": 1, "case_study": 2, "project": 1}:
+        raise AgentWorkflowError("The researcher must return two case studies, one theory, and one project.")
     return ideas
 
 
