@@ -80,17 +80,17 @@ Freeze these rules:
 
 ### 1. Backend foundation
 
-- [ ] Create FastAPI application and CORS configuration for the frontend.
-- [ ] Add typed Pydantic request and response schemas.
-- [ ] Add health endpoint and documented local run command.
-- [ ] Add SQLite initialization with `PRAGMA journal_mode=WAL` and `PRAGMA busy_timeout=5000`.
+- [x] Create FastAPI application and CORS configuration for the frontend.
+- [x] Add typed Pydantic request and response schemas.
+- [x] Add health endpoint and documented local run command.
+- [x] Add SQLite initialization with `PRAGMA journal_mode=WAL` and `PRAGMA busy_timeout=5000`.
 
 ### 2. Durable state
 
-- [ ] Create tables: `profile`, `preference_count`, `session`, `candidate`, `selection`, `publication`, and `search_cache`.
-- [ ] Seed `theory`, `case_study`, and `project` counts at 1 each.
-- [ ] Persist the original candidate order, evidence text, sources, profile snapshot version, selection response, and immutable outline.
-- [ ] Implement versioned search cache using subject, level, and profile version.
+- [x] Create tables: `profile`, `preference_count`, `session`, `candidate`, `selection`, `publication`, and `search_cache`.
+- [x] Seed `theory`, `case_study`, and `project` counts at 1 each.
+- [x] Persist the original candidate order, evidence text, sources, profile snapshot version, selection response, selected-card IDs, and immutable outline.
+- [x] Implement versioned search cache using subject, level, and profile version.
 
 ### 3. Learning engine
 
