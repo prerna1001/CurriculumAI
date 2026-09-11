@@ -23,7 +23,6 @@ from .artifact import Artifact, ConfigurationError, RenderError
 from .template import render_html
 
 CONTENT_TYPE = "text/html"
-SANDBOX_DIR = os.getenv("DAYTONA_WORKDIR", "/home/daytona/curriculumai")
 _TEMPLATE_PATH = Path(__file__).with_name("template.py")
 
 
@@ -75,14 +74,18 @@ def _render_in_sandbox(selection_id: str, saved_outline: dict) -> bytes:
     template_src = _TEMPLATE_PATH.read_bytes()
     outline_src = json.dumps(saved_outline, ensure_ascii=False).encode("utf-8")
 
-    remote_template = f"{SANDBOX_DIR}/template.py"
-    remote_outline = f"{SANDBOX_DIR}/outline.json"
-    remote_output = f"{SANDBOX_DIR}/artifact.html"
-
     client = Daytona(DaytonaConfig(api_key=api_key))
     sandbox = None
     try:
         sandbox = client.create()
+
+        # Ask the sandbox where its home is rather than guessing a path that
+        # may not exist — upload_file does not create missing directories.
+        workdir = os.getenv("DAYTONA_WORKDIR") or sandbox.get_user_root_dir()
+        remote_template = f"{workdir}/template.py"
+        remote_outline = f"{workdir}/outline.json"
+        remote_output = f"{workdir}/artifact.html"
+
         sandbox.fs.upload_file(template_src, remote_template)
         sandbox.fs.upload_file(outline_src, remote_outline)
 
