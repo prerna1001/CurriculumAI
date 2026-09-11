@@ -1,0 +1,1 @@
+"""CurriculumAI FastAPI backend."""
