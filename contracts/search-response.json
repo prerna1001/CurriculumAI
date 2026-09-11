@@ -1,0 +1,39 @@
+{
+  "session_id": "sess_demo_v0",
+  "profile_version": 0,
+  "preference_summary": "Teaching-style preferences are currently balanced.",
+  "cards": [
+    {
+      "id": "card_1",
+      "title": "Bias-variance tradeoff through model diagnostics",
+      "description": "Students derive the bias-variance tradeoff and interpret diagnostic plots for a supervised learning model.",
+      "teaching_style": "theory",
+      "source_url": "https://example.org/evidence/bias-variance",
+      "why_suggested": "Provides a rigorous conceptual foundation for introductory machine learning."
+    },
+    {
+      "id": "card_2",
+      "title": "Build and evaluate a campus-energy predictor",
+      "description": "Students build a small regression model for campus energy use and compare evaluation metrics.",
+      "teaching_style": "project",
+      "source_url": "https://example.org/evidence/energy-predictor",
+      "why_suggested": "Connects model evaluation to a concrete, end-to-end project."
+    },
+    {
+      "id": "card_3",
+      "title": "Hiring-model fairness audit",
+      "description": "Students audit a hiring-model case, identify disparate outcomes, and recommend mitigations.",
+      "teaching_style": "case_study",
+      "source_url": "https://example.org/evidence/hiring-audit",
+      "why_suggested": "Uses a realistic decision-making case to examine model impact."
+    },
+    {
+      "id": "card_4",
+      "title": "Clinical-risk model deployment review",
+      "description": "Students review a clinical-risk model case and decide whether evidence supports deployment.",
+      "teaching_style": "case_study",
+      "source_url": "https://example.org/evidence/clinical-risk",
+      "why_suggested": "Applies machine-learning evaluation to a high-stakes deployment decision."
+    }
+  ]
+}

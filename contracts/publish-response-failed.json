@@ -1,0 +1,11 @@
+{
+  "selection_id": "sel_demo_case_study",
+  "status": "failed",
+  "external_id": null,
+  "external_url": null,
+  "error": {
+    "code": "publication_failed",
+    "message": "The destination rejected the artifact before it was published.",
+    "retryable": true
+  }
+}

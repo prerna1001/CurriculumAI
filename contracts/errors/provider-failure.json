@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "provider_failure",
+    "message": "The research provider did not return a usable response.",
+    "retryable": true
+  }
+}

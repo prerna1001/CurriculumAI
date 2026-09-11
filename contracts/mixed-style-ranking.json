@@ -1,0 +1,18 @@
+{
+  "baseline": {
+    "profile_version": 0,
+    "counts": { "theory": 1, "case_study": 1, "project": 1 },
+    "weights": { "theory": 0.333333, "case_study": 0.333333, "project": 0.333333 },
+    "candidate_order": ["card_1", "card_2", "card_3", "card_4"]
+  },
+  "selection": {
+    "card_ids": ["card_3", "card_4"],
+    "styles": ["case_study", "case_study"]
+  },
+  "after_selection": {
+    "profile_version": 1,
+    "counts": { "theory": 1, "case_study": 3, "project": 1 },
+    "weights": { "theory": 0.2, "case_study": 0.6, "project": 0.2 },
+    "ranked_candidate_order": ["card_3", "card_4", "card_1", "card_2"]
+  }
+}

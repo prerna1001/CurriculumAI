@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "no_usable_evidence",
+    "message": "No candidate had a usable supporting source.",
+    "retryable": false
+  }
+}

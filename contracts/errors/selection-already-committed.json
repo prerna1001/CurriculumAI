@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "selection_already_committed",
+    "message": "This search session already has a different committed selection.",
+    "retryable": false
+  }
+}

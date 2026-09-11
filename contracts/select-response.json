@@ -1,0 +1,33 @@
+{
+  "selection_id": "sel_demo_case_study",
+  "profile_version": 1,
+  "learned_change": "case_study weight rose from 0.33 to 0.60 after two case-study selections.",
+  "preference_summary": "Prefers case_study (0.60), then theory (0.20) and project (0.20).",
+  "outline": {
+    "title": "Evaluating Machine Learning Systems Through Real-World Cases",
+    "sessions": [
+      {
+        "topic": "Hiring-model fairness audit",
+        "activity": "Teams audit a hiring-model case, identify disparate outcomes, and present mitigation recommendations.",
+        "learning_objective": "Evaluate how model design and data choices can create unfair outcomes.",
+        "source_references": [
+          {
+            "source_id": "card_3",
+            "url": "https://example.org/evidence/hiring-audit"
+          }
+        ]
+      },
+      {
+        "topic": "Clinical-risk model deployment review",
+        "activity": "Teams review deployment evidence for a clinical-risk model and defend a release decision.",
+        "learning_objective": "Assess whether model performance and evidence justify use in a high-stakes setting.",
+        "source_references": [
+          {
+            "source_id": "card_4",
+            "url": "https://example.org/evidence/clinical-risk"
+          }
+        ]
+      }
+    ]
+  }
+}
