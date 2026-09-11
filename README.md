@@ -50,6 +50,89 @@ and the ranking genuinely does not move; the UI says so rather than inventing a
 change. The stored original candidate order is what makes the before/after
 comparison verifiable instead of anecdotal.
 
+## Guardrails
+
+The agents are the only part of this system allowed to be creative, and the only
+part that isn't trusted. Everything they return is checked against something
+already on disk before it is stored or shown. There are **37 guard raises**
+across the backend; these are the ones that matter.
+
+> [!IMPORTANT]
+> **An agent cannot cite a page that was never searched.** Every `source_url` the
+> researcher returns must appear in the set You.com actually returned, and every
+> citation the writer returns must match the stored URL of a card the professor
+> selected. A fabricated source fails validation and the request returns `502` —
+> it is never quietly shown as evidence.
+
+### CrewAI — researcher agent
+`backend/agents/workflow.py`
+
+- **Exactly four cards**, or the whole result is rejected.
+- **Style must be one of** `theory` / `case_study` / `project` — nothing invented.
+- **Fixed mix enforced**: two case studies, one theory, one project, so every
+  professor is shown all three approaches rather than an echo chamber.
+- **Source must be real**: `source_url` has to be one of the URLs You.com returned.
+- **No empty fields**: title, description and `why_suggested` must all be present.
+
+### CrewAI — writer agent
+`backend/agents/workflow.py`
+
+- **One session per selected topic** — it cannot silently drop or invent one.
+- **Every session needs** a topic, an activity and a learning objective, all
+  non-empty after stripping.
+- **Citations are pinned**: each `source_id` must be a card the professor chose,
+  and its URL must equal that card's stored URL exactly.
+- **Nothing goes uncited**: every selected topic must appear in the references.
+
+### You.com — evidence retrieval
+`backend/integrations/you_search.py`
+
+- **30-second timeout** on the request.
+- **Only `http`/`https` results** with a title and body text are accepted.
+- **No evidence, no cards** — an empty result raises rather than letting the
+  agent proceed unsourced.
+
+### Daytona — sandboxed rendering
+`backend/rendering/`
+
+- **All source text is HTML-escaped** — model output and scraped web text reach
+  the renderer as data, never markup. Covered by an adversarial-input test.
+- **Only `http`/`https` citation links survive**; `javascript:` and `data:` URLs
+  are dropped rather than rendered.
+- **Standard library only** inside the sandbox, so nothing is installed at
+  runtime and the sandbox needs no outbound network access.
+- **Explicit exec timeout** (Daytona's own default is 10s, too tight for a cold
+  sandbox) and the **sandbox is deleted in a `finally` block** so a failure
+  can't leak one.
+- **Non-zero exit or empty output is an error**, not a silently blank document.
+
+### One — delivery
+`backend/integrations/one_publish.py`
+
+- **Publication keys are pattern-checked** before being used in a filename.
+- **The CLI is invoked as an argument list, never a shell string** — a title
+  containing `; rm -rf /` stays a title. Covered by a test.
+- **90-second timeout**, and a non-zero exit is surfaced rather than assumed sent.
+- **An unreadable receipt fails loudly** instead of reporting a success it can't
+  evidence.
+
+### State and API
+`backend/storage/`, `backend/schemas.py`
+
+- **One committed selection per search**, enforced by a `UNIQUE` constraint.
+  Re-submitting the same set returns the saved response; a different set is
+  rejected with `409`.
+- **Selection, outline, counts and version commit atomically** inside a single
+  `BEGIN IMMEDIATE` transaction, and roll back together on any error.
+- **Duplicate card IDs cannot inflate the counts** — IDs are normalised to a
+  sorted unique set first.
+- **Selected cards must belong to that search session.**
+- **The approved outline is frozen** and re-read at publish time, so what was
+  approved and what is delivered cannot drift apart.
+- **Schema-level limits** on every request and response: subject and level
+  length, exactly four cards, enumerated styles and statuses, URLs validated.
+- `PRAGMA foreign_keys`, `busy_timeout` and WAL journaling are all set on connect.
+
 ## Sponsor technology, honestly described
 
 | Tool | How it is used |
