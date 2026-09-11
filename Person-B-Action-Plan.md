@@ -1,156 +1,165 @@
-# CurriculumAI — Person B action plan
+# CurriculumAI — Person B backend handoff
 
-## Our outcome
+## What Person B built
 
-Build the durable backend learning loop that demonstrates a self-improving curriculum agent:
+Person B owns the durable learning loop:
 
 ```text
-search → select topics → save preference update → profile-aware second search
+search → select topics → save preference update → saved outline → profile-aware second search
 ```
 
-The required visible result is that a professor's explicit selections change the agent context and make a subsequent search rank relevant teaching styles differently.
+The backend starts with balanced `theory`, `case_study`, and `project` preferences. Selecting two case-study cards changes the saved weights to `theory=0.20`, `case_study=0.60`, and `project=0.20`. The next search uses that profile in the You.com query, both CrewAI prompts, and deterministic card ranking.
 
-## What we own
+## Status and validation
 
-| Area | Files / responsibility |
+| Area | Status | Evidence |
+| --- | --- | --- |
+| FastAPI, schemas, CORS, SQLite persistence | Complete | 11 local tests pass |
+| Learning, replay safety, restart persistence | Complete | Selection updates exactly once; preferences persist after restart |
+| Fixture mode | Complete | Frontend can develop without service keys |
+| Live You.com research | Complete | Real search returned four cards |
+| Live CrewAI researcher and writer | Complete | Live search, selection, cited outline, and second search returned HTTP 200 |
+| Demo card mix | Complete | Live researcher requires two case studies, one theory, one project |
+| Frontend, rendering, One publishing | Person A pending | See integration requirements below |
+
+The live proof completed: first search returned four cards; selecting two case-study cards produced a two-session outline; second search returned profile version `1` with case-study cards ranked first.
+
+## Person B files
+
+| Area | Location |
 | --- | --- |
-| API | `backend/main.py`, `backend/schemas.py` |
-| Agents | `backend/agents/` — researcher and writer CrewAI roles |
-| Learning | `backend/learning/` — `ProfileContext`, weights, ranking, factual learning messages |
-| Storage | `backend/storage/` — SQLite schema, transactions, persistence helpers |
-| Research | `backend/integrations/you_search.py` — live You.com evidence retrieval |
-| Setup | backend dependency manifest and lockfile, `.env.example`, `.gitignore`, `backend/SETUP.md` |
-| Shared contracts | `contracts/` — we write these after agreement with Person A |
-| Tests | API, storage, and learning tests |
+| API routes | `backend/main.py` |
+| API types | `backend/schemas.py` |
+| Learning | `backend/learning/` |
+| SQLite state | `backend/storage/` |
+| You.com adapter | `backend/integrations/you_search.py` |
+| CrewAI researcher/writer | `backend/agents/workflow.py` |
+| Shared examples | `contracts/` |
+| Tests | `tests/` |
 
-Person A owns `frontend/`, `backend/rendering/`, `backend/integrations/one_publish.py`, publishing/rendering tests, root README, and submission material.
+## Run the backend
 
-## Pending from Person A
+Use the project Python 3.12 environment:
 
-- [ ] Create the `frontend/` Next.js application and consume the fixtures in `contracts/` without renaming fields.
-- [ ] Implement and commit importable `Artifact` and `Receipt` types plus `render_outline()` and `publish_artifact()` stubs by the contract checkpoint.
-- [ ] Confirm the One platform, action ID, connection key, content format, and test destination in `contracts/one_action.md`.
-- [ ] Prove a tiny saved-outline artifact can render through Daytona and publish through One.
-- [ ] Implement the production renderer and `one_publish.py` adapter without any SQLite writes.
-- [ ] Build UI states for search, selection, immutable outline preview, profile/rank change, and publication progress/errors.
-- [ ] Verify a new search keeps the prior saved preview and publishing target visible.
-- [ ] Own root README, demo video, submission description, and final delivery.
+```bash
+./.venv/bin/uvicorn backend.main:app --env-file .env --reload --port 8000
+```
 
-## Boundary with Person A
+Use `http://localhost:8000/docs` to test the API interactively.
 
-At the contract checkpoint, Person A supplies importable stubs for:
+For live services, the ignored `.env` needs:
+
+```env
+CURRICULUMAI_MODE=live
+ANTHROPIC_API_KEY=...
+YOUCOM_API_KEY=...
+ANTHROPIC_MODEL=claude-sonnet-4-6
+```
+
+Set `CURRICULUMAI_MODE=fixture` for frontend development without external calls.
+
+## API contract for Person A
+
+Person A must use the literal examples in `contracts/` and keep all field names unchanged.
+
+| Route | Request | Response Person A should use |
+| --- | --- | --- |
+| `GET /health` | none | `{ "status": "ok" }` |
+| `POST /api/search` | `{ "subject", "level" }` | `session_id`, `profile_version`, `preference_summary`, four cards |
+| `POST /api/select` | `{ "session_id", "card_ids" }` | `selection_id`, updated profile fields, `learned_change`, immutable cited `outline` |
+| `POST /api/publish` | `{ "selection_id" }` | `status`, nullable external ID and URL |
+
+### Search output
+
+```json
+{
+  "session_id": "sess_...",
+  "profile_version": 1,
+  "preference_summary": "Prefers case_study (0.60), then theory (0.20) and project (0.20).",
+  "cards": [{
+    "id": "card_...",
+    "title": "...",
+    "description": "...",
+    "teaching_style": "case_study",
+    "source_url": "https://...",
+    "why_suggested": "..."
+  }]
+}
+```
+
+### Selection output
+
+```json
+{
+  "selection_id": "sel_...",
+  "profile_version": 1,
+  "learned_change": "case_study weight rose from 0.33 to 0.60 after 2 case-study selections.",
+  "preference_summary": "...",
+  "outline": {
+    "title": "...",
+    "sessions": [{
+      "topic": "...",
+      "activity": "...",
+      "learning_objective": "...",
+      "source_references": [{ "source_id": "card_...", "url": "https://..." }]
+    }]
+  }
+}
+```
+
+All errors use:
+
+```json
+{ "error": { "code": "...", "message": "...", "retryable": false } }
+```
+
+Important UI cases: preserve useful state on `422`; preserve the saved outline on `409 selection_already_committed`; allow a search retry after `502 provider_failure`.
+
+## Guarantees Person A can rely on
+
+- IDs are generated by the server and passed to later calls.
+- Search returns exactly four cards or an explicit error.
+- Duplicate selected IDs cannot increase preferences twice.
+- Repeating the same selection returns the original saved response.
+- A different selection for a committed session returns HTTP 409.
+- The approved outline is immutable and remains stored after a new search.
+- Preferences survive backend restart.
+- Repeated publish calls return the same publication record and never create a second record.
+
+## Required work from Person A
+
+### Frontend
+
+- [ ] Build `frontend/` against `http://localhost:8000` and the shared contracts.
+- [ ] Render cards with title, description, style, source link, and reason suggested.
+- [ ] Implement **Use these topics** using `session_id` and selected card IDs.
+- [ ] Display `learned_change`, preference summary, profile version, and immutable outline.
+- [ ] Keep the saved outline visible after a second search.
+- [ ] Clearly show the changed order in the second search for the demo.
+- [ ] Add loading, retry, and shared-error states.
+
+### Daytona renderer and One publisher
+
+Person A owns `backend/rendering/`, `backend/integrations/one_publish.py`, and their tests. Person A must provide:
 
 ```python
 render_outline(selection_id, saved_outline) -> Artifact
 publish_artifact(publication_key, artifact) -> Receipt
 ```
 
-We own saved-outline lookup, all SQLite writes, publication records, and `/api/publish`. We call these functions but do not change their implementation. Person A's adapters do not write to SQLite or update preferences.
+`Artifact` carries the title, content type, and bytes or destination-required payload. `Receipt` carries external file ID and URL. These adapters must not write SQLite or update preferences.
 
-## Before independent work
+Person B already owns durable publication state through `/api/publish`. Once Person A supplies the functions above, Person B will connect the route to render then publish the exact saved outline. Until then, fixture publishing returns `publishing` and safely prevents duplicate publication records.
 
-- [ ] Clone the shared GitHub repository and create our backend branch, e.g. `backend-learning-workflow`.
-- [ ] Confirm the branch starts from the same contract commit as Person A.
-- [ ] Confirm both local frontend and backend hello-world apps run.
-- [ ] Add `.gitignore` entries for `.env`, `*.db`, Python cache files, Node modules, and build output.
-- [ ] Create `.env.example` with names only—never commit any secret values.
-- [ ] Confirm access to You.com and the selected LLM provider locally.
-- [ ] Agree with Person A on One platform/action/connection metadata and record non-secret details in `contracts/one_action.md`.
+Person A must complete `contracts/one_action.md` with the One platform, action ID, connection key, artifact format, and test destination, then prove that the Daytona-rendered saved outline opens correctly after One publishes it.
 
-## Contract deliverables (minute 0–20)
+## Demo sequence
 
-Create literal JSON fixtures in `contracts/` for:
+1. Search an undergraduate machine-learning topic.
+2. Select the two case-study cards.
+3. Show `learned_change` and the two-session cited outline.
+4. Search a related topic again.
+5. Show profile version `1` and case-study cards first.
+6. After Person A integration, preview and publish that exact saved outline.
 
-- [ ] `POST /api/search` request and successful response
-- [ ] `POST /api/select` request and successful response
-- [ ] `POST /api/publish` published and in-progress responses
-- [ ] Invalid-input, no-usable-evidence, committed-selection-conflict, and provider-failure errors
-- [ ] A mixed-style ranking fixture showing the before/after learning change
-- [ ] A saved-outline fixture using the exact agreed outline shape
-
-Freeze these rules:
-
-- `session_id` and `selection_id` are generated by the server.
-- Search returns exactly four evidence-supported cards or an explicit error.
-- Selection IDs are deduplicated for comparison but preserve card display order in the saved outline.
-- The outline is immutable after selection commitment.
-- All errors use `{ "error": { "code", "message", "retryable" } }`.
-
-## Build order
-
-### 1. Backend foundation
-
-- [x] Create FastAPI application and CORS configuration for the frontend.
-- [x] Add typed Pydantic request and response schemas.
-- [x] Add health endpoint and documented local run command.
-- [x] Add SQLite initialization with `PRAGMA journal_mode=WAL` and `PRAGMA busy_timeout=5000`.
-
-### 2. Durable state
-
-- [x] Create tables: `profile`, `preference_count`, `session`, `candidate`, `selection`, `publication`, and `search_cache`.
-- [x] Seed `theory`, `case_study`, and `project` counts at 1 each.
-- [x] Persist the original candidate order, evidence text, sources, profile snapshot version, selection response, selected-card IDs, and immutable outline.
-- [x] Implement versioned search cache using subject, level, and profile version.
-
-### 3. Learning engine
-
-- [x] Build `ProfileContext` containing `version`, style `weights`, and a factual preference summary.
-- [x] Increment one teaching-style count for each unique selected card.
-- [x] Increment profile version once per committed selection.
-- [x] Rank valid cards by descending style weight, breaking ties using saved original candidate order.
-- [x] Generate `learned_change` from stored before/after values without another LLM call.
-- [x] Write deterministic tests for skewed and balanced selections.
-
-Expected proof case:
-
-```text
-baseline: theory=1, case_study=1, project=1
-select two case-study cards
-after:   theory=1, case_study=3, project=1
-weights: theory=0.20, case_study=0.60, project=0.20
-```
-
-### 4. Fixture-backed routes
-
-- [x] Implement `POST /api/search` with fixture candidates and saved session state.
-- [x] Implement `POST /api/select` with validation and one atomic persistence transaction.
-- [x] Return the original response for an identical replay of a committed selection.
-- [x] Return `409 selection_already_committed` for a different selection on the same session.
-- [x] Implement fixture-mode `POST /api/publish` state handling; integrate Person A's adapter stubs in phase 4b.
-
-### 5. Live agent workflow
-
-- [x] Implement You.com evidence retrieval and reject candidates without usable web sources.
-- [x] Create the researcher CrewAI role and include `ProfileContext` in its task.
-- [x] Create the writer CrewAI role and include `ProfileContext` in its task.
-- [ ] Validate subject relevance, level, evidence, and teaching style before ranking.
-- [ ] Generate one cited outline session for every unique selected card.
-- [ ] Replace fixture search and outline generation with the live workflow.
-
-### 6. Integration and verification
-
-- [x] Verify fixture contracts match API response types and Person A's frontend inputs.
-- [x] Verify duplicate card IDs do not inflate preferences.
-- [x] Verify repeated same-selection calls cause one committed update only.
-- [x] Verify a backend restart preserves preferences and supports a new workflow.
-- [x] Verify the second search uses the updated profile version and shows changed ranking.
-- [x] Verify `/api/publish` creates one publication record and repeat calls return the saved result.
-- [x] Document local setup, environment variable names, and test commands in `backend/SETUP.md`.
-
-## Demo evidence we provide
-
-- [ ] First live search and its card order.
-- [ ] Selected topics and the returned `learned_change`.
-- [ ] Second live search with updated profile version and changed card ranking.
-- [ ] Logs or test evidence showing `ProfileContext` reached both CrewAI tasks.
-- [ ] Stored SQLite data showing preference counts persist across restart.
-
-## Time-based decision
-
-At minute 85, the learning loop must be live. At minute 110, if One publishing still blocks progress, stop work on publishing and preserve the tier-2 demo:
-
-```text
-live search → select → learning → profile-aware second search → Daytona-rendered artifact
-```
-
-This still demonstrates the event's judged self-improving-agent criterion.
+This is the self-improving-agent demonstration; publishing is the final delivery step.
