@@ -1,0 +1,47 @@
+{
+  "_comment": "Frozen error codes. Every error response carries exactly this envelope. A publish failure additionally carries status and the nullable external fields.",
+  "invalid_input": {
+    "_http": 422,
+    "error": {
+      "code": "invalid_input",
+      "message": "subject must be a non-empty string.",
+      "retryable": false
+    }
+  },
+  "no_usable_evidence": {
+    "_http": 422,
+    "error": {
+      "code": "no_usable_evidence",
+      "message": "No candidate had a usable supporting source.",
+      "retryable": true
+    }
+  },
+  "selection_already_committed": {
+    "_http": 409,
+    "error": {
+      "code": "selection_already_committed",
+      "message": "This session already has a committed selection.",
+      "retryable": false
+    }
+  },
+  "provider_failure": {
+    "_http": 502,
+    "error": {
+      "code": "provider_failure",
+      "message": "The research provider did not return a usable response.",
+      "retryable": true
+    }
+  },
+  "publish_failed": {
+    "_http": 502,
+    "selection_id": "sel_baseline",
+    "status": "failed",
+    "external_id": null,
+    "external_url": null,
+    "error": {
+      "code": "publish_failed",
+      "message": "The destination rejected the artifact.",
+      "retryable": true
+    }
+  }
+}

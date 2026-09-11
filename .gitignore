@@ -1,0 +1,24 @@
+# node
+node_modules/
+.next/
+out/
+npm-debug.log*
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# secrets and local state
+.env
+.env.local
+*.db
+*.sqlite3
+
+# generated artifacts (degradation tier 2 output)
+artifacts/
+
+# os
+.DS_Store

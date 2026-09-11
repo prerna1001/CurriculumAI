@@ -1,0 +1,8 @@
+{
+  "_comment": "Deterministic learning check. Same four candidates, profile after the worked example in the build plan. Order is by descending style weight, ties broken by the stored original candidate order.",
+  "profile_version": 1,
+  "counts": { "theory": 1, "case_study": 3, "project": 1 },
+  "weights": { "theory": 0.2, "case_study": 0.6, "project": 0.2 },
+  "expected_card_order": ["card_3", "card_4", "card_1", "card_2"],
+  "expected_rank_delta": { "card_3": 2, "card_4": 2, "card_1": -2, "card_2": -2 }
+}

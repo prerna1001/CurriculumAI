@@ -1,0 +1,33 @@
+{
+  "selection_id": "sel_baseline",
+  "profile_version": 1,
+  "learned_change": "case_study weight rose from 0.33 to 0.60 after two case-study selections.",
+  "preference_summary": "Prefers case_study (0.60), then theory (0.20) and project (0.20).",
+  "outline": {
+    "title": "Diagnosing model failure in practice",
+    "sessions": [
+      {
+        "topic": "Audit a hiring model for disparate impact",
+        "activity": "In pairs, students reconstruct the hiring model's training pipeline from the reporting, mark each point where selection bias could enter, and defend one mitigation to the room.",
+        "learning_objective": "Locate the stage of a pipeline at which a fairness failure originated, and justify a mitigation appropriate to that stage.",
+        "source_references": [
+          {
+            "source_id": "src_hiring_audit",
+            "url": "https://www.reuters.com/article/us-amazon-com-jobs-automation-insight-idUSKCN1MK08G"
+          }
+        ]
+      },
+      {
+        "topic": "Post-mortem: a recommender's feedback loop",
+        "activity": "Students diagram the loop between recommendation and training data, then estimate how many cycles it takes for a minority preference to disappear from the catalogue.",
+        "learning_objective": "Explain how deployment decisions reshape the training distribution, and quantify the rate at which that happens.",
+        "source_references": [
+          {
+            "source_id": "src_feedback_loop",
+            "url": "https://dl.acm.org/doi/10.1145/3383313.3418487"
+          }
+        ]
+      }
+    ]
+  }
+}

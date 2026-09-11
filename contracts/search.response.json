@@ -1,0 +1,39 @@
+{
+  "session_id": "sess_baseline",
+  "profile_version": 0,
+  "preference_summary": "No teaching-style preference recorded yet. Showing a balanced set.",
+  "cards": [
+    {
+      "id": "card_1",
+      "title": "The bias-variance decomposition, derived",
+      "description": "Work through the formal decomposition of expected error, then predict which term dominates for three model families before checking against measured error.",
+      "teaching_style": "theory",
+      "source_url": "https://www.cs.cornell.edu/courses/cs4780/2018fa/lectures/lecturenote12.html",
+      "why_suggested": "Foundational result that later diagnostic work depends on."
+    },
+    {
+      "id": "card_2",
+      "title": "Build and defend a model card",
+      "description": "Students train a small classifier and publish a model card documenting intended use, evaluation data and known failure modes.",
+      "teaching_style": "project",
+      "source_url": "https://arxiv.org/abs/1810.03993",
+      "why_suggested": "Produces an artifact students can carry into later coursework."
+    },
+    {
+      "id": "card_3",
+      "title": "Audit a hiring model for disparate impact",
+      "description": "Students examine a documented hiring-model failure, locate where error entered the pipeline, and argue which mitigation would have caught it.",
+      "teaching_style": "case_study",
+      "source_url": "https://www.reuters.com/article/us-amazon-com-jobs-automation-insight-idUSKCN1MK08G",
+      "why_suggested": "Connects error analysis to a consequence students already recognise."
+    },
+    {
+      "id": "card_4",
+      "title": "Post-mortem: a recommender's feedback loop",
+      "description": "Students trace how a deployed recommender narrowed its own training distribution, then propose an intervention and predict its cost.",
+      "teaching_style": "case_study",
+      "source_url": "https://dl.acm.org/doi/10.1145/3383313.3418487",
+      "why_suggested": "Shows distribution shift as an operational problem rather than a formula."
+    }
+  ]
+}
