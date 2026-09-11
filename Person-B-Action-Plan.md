@@ -94,12 +94,12 @@ Freeze these rules:
 
 ### 3. Learning engine
 
-- [ ] Build `ProfileContext` containing `version`, style `weights`, and a factual preference summary.
-- [ ] Increment one teaching-style count for each unique selected card.
-- [ ] Increment profile version once per committed selection.
-- [ ] Rank valid cards by descending style weight, breaking ties using saved original candidate order.
-- [ ] Generate `learned_change` from stored before/after values without another LLM call.
-- [ ] Write deterministic tests for skewed and balanced selections.
+- [x] Build `ProfileContext` containing `version`, style `weights`, and a factual preference summary.
+- [x] Increment one teaching-style count for each unique selected card.
+- [x] Increment profile version once per committed selection.
+- [x] Rank valid cards by descending style weight, breaking ties using saved original candidate order.
+- [x] Generate `learned_change` from stored before/after values without another LLM call.
+- [x] Write deterministic tests for skewed and balanced selections.
 
 Expected proof case:
 

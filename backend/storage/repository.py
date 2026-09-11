@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
+from backend.learning.profile import ProfileContext, learned_change, preference_summary
 from backend.storage.database import connect
 
 
@@ -29,13 +30,6 @@ class InvalidSelection(StorageError):
 
 class SelectionAlreadyCommitted(StorageError):
     """Raised when a session already has a different committed selection."""
-
-
-@dataclass(frozen=True)
-class ProfileContext:
-    version: int
-    weights: dict[str, float]
-    summary: str
 
 
 @dataclass(frozen=True)
@@ -64,14 +58,6 @@ def _normalise_card_ids(card_ids: Iterable[str]) -> tuple[str, ...]:
     return tuple(sorted(set(card_ids)))
 
 
-def _summary(weights: dict[str, float]) -> str:
-    ordered = sorted(weights.items(), key=lambda item: (-item[1], item[0]))
-    if len({round(weight, 8) for _, weight in ordered}) == 1:
-        return "Teaching-style preferences are currently balanced."
-    formatted = ", then ".join(f"{style} ({weight:.2f})" for style, weight in ordered)
-    return f"Prefers {formatted}."
-
-
 def _profile_context(connection: sqlite3.Connection) -> ProfileContext:
     version_row = connection.execute("SELECT version FROM profile WHERE id = 1").fetchone()
     rows = connection.execute(
@@ -84,7 +70,7 @@ def _profile_context(connection: sqlite3.Connection) -> ProfileContext:
         for style in TEACHING_STYLES
     }
     return ProfileContext(
-        version=version_row["version"], weights=weights, summary=_summary(weights)
+        version=version_row["version"], weights=weights, summary=preference_summary(weights)
     )
 
 
@@ -239,20 +225,11 @@ class Repository:
             after = _profile_context(connection)
 
             selected_styles = [row["teaching_style"] for row in rows]
-            changed_style = max(
-                selected_styles,
-                key=lambda style: after.weights[style] - before.weights[style],
-            )
             selection_id = f"sel_{uuid.uuid4().hex}"
-            learned_change = (
-                f"{changed_style} weight rose from {before.weights[changed_style]:.2f} "
-                f"to {after.weights[changed_style]:.2f} after {len(rows)} "
-                f"{changed_style.replace('_', '-')} selections."
-            )
             response = {
                 "selection_id": selection_id,
                 "profile_version": after.version,
-                "learned_change": learned_change,
+                "learned_change": learned_change(before, after, selected_styles),
                 "preference_summary": after.summary,
                 "outline": outline,
             }
