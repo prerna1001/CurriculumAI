@@ -6,6 +6,8 @@ topics they actually choose, and rank the next set differently because of it.
 Built for **Build with YOU: The AI Agent Hackathon** (theme: *self-improving and
 learning agents*).
 
+![How CurriculumAI works: a professor describes a course, a Researcher agent searches the live web via You.com, four sourced topics appear, the professor picks the ones they would teach, a Writer agent plans the lessons, the choice is remembered and fed back into the next search, and the approved outline is rendered in a Daytona sandbox and delivered through One.](docs/architecture.png)
+
 ## The loop being demonstrated
 
 1. A professor enters a subject and level. A research agent searches the live web
