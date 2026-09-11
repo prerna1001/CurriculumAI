@@ -13,8 +13,15 @@ from fastapi.responses import JSONResponse
 
 from backend.agents.workflow import AgentWorkflowError, candidates_from_research, generate_outline, research_candidates
 from backend.fixtures import fixture_candidates
+from backend.integrations.one_publish import publish_artifact
 from backend.integrations.you_search import YouSearchError
 from backend.learning.ranking import rank_candidates
+from backend.rendering import (
+    ConfigurationError,
+    PublishError,
+    RenderError,
+    render_outline,
+)
 from backend.schemas import (
     ErrorDetail,
     ErrorResponse,
@@ -58,6 +65,16 @@ def repository() -> Repository:
 
 def live_mode() -> bool:
     return os.getenv("CURRICULUMAI_MODE", "fixture").lower() == "live"
+
+
+def publish_live() -> bool:
+    """Whether /api/publish really renders and delivers.
+
+    Deliberately separate from CURRICULUMAI_MODE: research (You.com + CrewAI)
+    and delivery (Daytona + One) have independent credentials, so the demo can
+    run deterministic cards while still publishing for real.
+    """
+    return os.getenv("CURRICULUMAI_PUBLISH_MODE", "reserve").lower() == "live"
 
 
 def error_response(status_code: int, code: str, message: str, retryable: bool) -> JSONResponse:
@@ -177,13 +194,46 @@ def select(request: SelectRequest) -> SelectResponse | JSONResponse:
     status_code=202,
 )
 def publish(request: PublishRequest) -> PublicationResponse | JSONResponse:
-    """Reserve one publication record; Person A's adapter is integrated in phase 4b."""
+    """Render the saved outline in a Daytona sandbox and deliver it through One.
+
+    The outline is never regenerated here — rendering reads the same stored JSON
+    the professor approved, so the artifact and the preview cannot diverge.
+    """
+    store = repository()
     try:
-        publication = repository().begin_publication(request.selection_id)
+        publication = store.begin_publication(request.selection_id)
     except InvalidSelection:
         return error_response(404, "selection_not_found", "The selection does not exist.", False)
 
-    status_code = 200 if publication["status"] in {"published", "failed"} else 202
-    if status_code == 200:
-        return JSONResponse(status_code=status_code, content=publication)
-    return PublicationResponse.model_validate(publication)
+    # A settled attempt is returned as-is; one publication per selection.
+    if publication["status"] in {"published", "failed"}:
+        return JSONResponse(status_code=200, content=publication)
+
+    if not publish_live():
+        return PublicationResponse.model_validate(publication)
+
+    outline = store.saved_outline(request.selection_id)
+    if outline is None:
+        return error_response(404, "selection_not_found", "The selection does not exist.", False)
+
+    try:
+        artifact = render_outline(request.selection_id, outline)
+        receipt = publish_artifact(request.selection_id, artifact)
+    except (RenderError, PublishError, ConfigurationError) as error:
+        failed = store.finish_publication(request.selection_id, "failed")
+        return JSONResponse(
+            status_code=502,
+            content={
+                **failed,
+                "error": {
+                    "code": "publication_failed",
+                    "message": str(error),
+                    "retryable": True,
+                },
+            },
+        )
+
+    delivered = store.finish_publication(
+        request.selection_id, "published", receipt.external_id, receipt.external_url
+    )
+    return JSONResponse(status_code=200, content=delivered)

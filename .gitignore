@@ -9,11 +9,15 @@
 *.db-wal
 data/
 
+# Generated artifacts (publish degradation tier 2)
+artifacts/
+
 # Python
 __pycache__/
 *.py[cod]
 .venv/
 venv/
+*.egg-info/
 .pytest_cache/
 .mypy_cache/
 .coverage
