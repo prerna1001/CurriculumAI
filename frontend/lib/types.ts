@@ -66,12 +66,24 @@ export interface EvalPoint {
   at: string | null;
 }
 
+export interface LadderRow {
+  title: string;
+  teaching_style: TeachingStyle;
+  rank_before: number;
+  rank_after: number;
+  moved: number;
+}
+
 export interface EvalsResponse {
   selections: number;
   profile_version: number;
   current_weights: Record<TeachingStyle, number>;
+  start_weights: Record<TeachingStyle, number>;
   preference_summary: string;
   points: EvalPoint[];
+  ladder: LadderRow[];
+  ladder_subject: string | null;
+  queries: { subject: string; first: string; latest: string } | null;
   top2_share_first: number | null;
   top2_share_latest: number | null;
   top2_share_delta: number | null;

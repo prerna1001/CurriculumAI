@@ -19,7 +19,8 @@ from typing import Any
 
 from fastapi import APIRouter
 
-from backend.learning.profile import preference_summary
+from backend.agents.workflow import research_query
+from backend.learning.profile import ProfileContext, preference_summary
 from backend.storage.database import connect
 
 router = APIRouter()
@@ -44,6 +45,30 @@ def _ranked_ids(rows: list[Any], weights: dict[str, float]) -> list[str]:
     ]
 
 
+def _ladder(rows: list[Any], before: dict[str, float], after: dict[str, float]) -> list[dict[str, Any]]:
+    """Rank ONE fixed candidate set under two profiles.
+
+    A controlled comparison: because both columns rank the same four topics,
+    any movement is the profile and nothing else. Comparing two live searches
+    would not show this — the researcher returns different topics each run.
+    """
+    start = {card_id: rank for rank, card_id in enumerate(_ranked_ids(rows, before), start=1)}
+    now = {card_id: rank for rank, card_id in enumerate(_ranked_ids(rows, after), start=1)}
+    return sorted(
+        (
+            {
+                "title": row["title"],
+                "teaching_style": row["teaching_style"],
+                "rank_before": start[row["id"]],
+                "rank_after": now[row["id"]],
+                "moved": start[row["id"]] - now[row["id"]],
+            }
+            for row in rows
+        ),
+        key=lambda entry: entry["rank_after"],
+    )
+
+
 def evaluate(database_path: str) -> dict[str, Any]:
     with connect(database_path) as connection:
         selections = connection.execute(
@@ -53,11 +78,21 @@ def evaluate(database_path: str) -> dict[str, Any]:
             """
         ).fetchall()
         candidates = connection.execute(
-            "SELECT id, session_id, teaching_style, rank_order FROM candidate"
+            "SELECT id, session_id, title, teaching_style, rank_order FROM candidate"
         ).fetchall()
         seeded = connection.execute(
             "SELECT value, count FROM preference_count WHERE dimension = 'teaching_style'"
         ).fetchall()
+        newest = connection.execute(
+            "SELECT id, subject, level FROM session ORDER BY created_at DESC, id DESC LIMIT 1"
+        ).fetchone()
+        # The ladder deliberately uses the FIRST search, not the latest. Later
+        # searches were researched under an already-biased profile, so their
+        # candidates arrive pre-sorted and the re-rank has nothing left to show.
+        # The first set was found under a neutral profile — the honest control.
+        earliest = connection.execute(
+            "SELECT id, subject, level FROM session ORDER BY created_at ASC, id ASC LIMIT 1"
+        ).fetchone()
 
     by_session: dict[str, list[Any]] = {}
     for row in candidates:
@@ -125,12 +160,45 @@ def evaluate(database_path: str) -> dict[str, Any]:
     first = scored[0]["top2_share"] if scored else None
     latest = scored[-1]["top2_share"] if scored else None
 
+    start_weights = points[0]["weights"]
+    now_weights = _weights(counts)
+
+    ladder: list[dict[str, Any]] = []
+    ladder_subject: str | None = None
+    if earliest:
+        rows = by_session.get(earliest["id"], [])
+        if rows:
+            ladder = _ladder(rows, start_weights, now_weights)
+            ladder_subject = earliest["subject"]
+
+    queries: dict[str, str] | None = None
+    if newest:
+        # research_query is deterministic in (subject, level, weights), so the
+        # query each profile produced is recomputed rather than logged.
+        queries = {
+            "subject": newest["subject"],
+            "first": research_query(
+                newest["subject"],
+                newest["level"],
+                ProfileContext(0, start_weights, preference_summary(start_weights)),
+            ),
+            "latest": research_query(
+                newest["subject"],
+                newest["level"],
+                ProfileContext(len(selections), now_weights, preference_summary(now_weights)),
+            ),
+        }
+
     return {
         "selections": len(selections),
         "profile_version": len(selections),
-        "current_weights": _weights(counts),
-        "preference_summary": preference_summary(_weights(counts)),
+        "current_weights": now_weights,
+        "start_weights": start_weights,
+        "preference_summary": preference_summary(now_weights),
         "points": points,
+        "ladder": ladder,
+        "ladder_subject": ladder_subject,
+        "queries": queries,
         "top2_share_first": first,
         "top2_share_latest": latest,
         "top2_share_delta": None if first is None or latest is None else latest - first,

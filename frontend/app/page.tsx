@@ -421,7 +421,9 @@ export default function Home() {
         )}
       </main>
 
-      <div className="xl:sticky xl:top-16 xl:self-start">
+      {/* The panel grows with history, so cap it and scroll rather than
+          letting it run off the bottom of a short screen. */}
+      <div className="xl:sticky xl:top-16 xl:max-h-[calc(100vh-8rem)] xl:self-start xl:overflow-x-hidden xl:overflow-y-auto">
         <ImprovementPanel refreshKey={selection?.profile_version ?? 0} />
       </div>
     </div>

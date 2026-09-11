@@ -17,14 +17,16 @@ import {
  * lightness, chroma floor, CVD separation (worst adjacent pair ΔE 9.0 deutan),
  * normal-vision separation (ΔE 16.2) and contrast against the card surface.
  */
-const SERIES: { style: TeachingStyle; color: string }[] = [
-  { style: "case_study", color: "#a4690f" },
-  { style: "theory", color: "#4a63c8" },
-  { style: "project", color: "#2f8a63" },
-];
+const STYLE_CHART: Record<TeachingStyle, string> = {
+  case_study: "#a4690f",
+  theory: "#4a63c8",
+  project: "#2f8a63",
+};
 
+const ORDER: TeachingStyle[] = ["case_study", "theory", "project"];
 const SURFACE = "#fffdfa";
-const INK_FAINT = "#8b8177";
+const ACCENT = "#a4690f";
+const UP = "#2f8a63";
 
 export default function ImprovementPanel({
   refreshKey,
@@ -46,33 +48,33 @@ export default function ImprovementPanel({
 
   useEffect(() => {
     const host = chartRef.current;
-    if (!host || !data || data.points.length < 2) return;
+    const scored = data?.points.filter((p) => p.top2_share !== null) ?? [];
+    if (!host || scored.length < 2) return;
 
-    const rows = data.points.flatMap((point) =>
-      SERIES.map(({ style }) => ({
-        version: point.version,
-        weight: point.weights[style],
-        series: STYLE_LABEL[style],
-      })),
-    );
+    const rows = scored.map((p) => ({
+      selection: p.n,
+      share: p.top2_share as number,
+    }));
 
     const chart = Plot.plot({
-      width: 292,
-      height: 112,
+      // Panel is 300px with 20px padding each side — anything wider than 260
+      // gives the whole rail a horizontal scrollbar.
+      width: 256,
+      height: 96,
       marginTop: 8,
-      marginRight: 10,
+      marginRight: 8,
       marginBottom: 20,
-      marginLeft: 26,
+      marginLeft: 28,
       style: {
         background: "transparent",
         fontFamily: "var(--font-plex-sans), system-ui, sans-serif",
         fontSize: "9px",
-        color: INK_FAINT,
+        color: "#8b8177",
       },
       x: {
         label: null,
-        ticks: data.points.map((p) => p.version),
-        tickFormat: (v: number) => `v${v}`,
+        ticks: rows.map((r) => r.selection),
+        tickFormat: (v: number) => String(v),
         tickSize: 0,
         tickPadding: 6,
       },
@@ -80,39 +82,31 @@ export default function ImprovementPanel({
         label: null,
         domain: [0, 1],
         ticks: [0, 0.5, 1],
-        tickFormat: (v: number) =>
-          v === 0 || v === 1 ? String(v) : v.toFixed(1).replace("0.", "."),
+        tickFormat: (v: number) => `${Math.round(v * 100)}%`,
         tickSize: 0,
         tickPadding: 4,
-        grid: true,
-      },
-      color: {
-        domain: SERIES.map((s) => STYLE_LABEL[s.style]),
-        range: SERIES.map((s) => s.color),
       },
       marks: [
         Plot.gridY({ stroke: "#e4ddd1", strokeOpacity: 1, strokeWidth: 1 }),
         Plot.ruleY([0], { stroke: "#d8cdb9", strokeWidth: 1 }),
+        // Single series, so no legend — the heading above names it.
         Plot.line(rows, {
-          x: "version",
-          y: "weight",
-          stroke: "series",
+          x: "selection",
+          y: "share",
+          stroke: ACCENT,
           strokeWidth: 2,
-          curve: "monotone-x",
         }),
-        // 2px surface ring so overlapping points stay separable.
         Plot.dot(rows, {
-          x: "version",
-          y: "weight",
-          fill: "series",
+          x: "selection",
+          y: "share",
+          fill: ACCENT,
           r: 4,
           stroke: SURFACE,
           strokeWidth: 2,
           tip: {
             format: {
-              series: true,
-              weight: (w: number) => w.toFixed(2),
-              version: (v: number) => `profile v${v}`,
+              selection: (v: number) => `selection ${v}`,
+              share: (v: number) => `${Math.round(v * 100)}% in top two`,
             },
           },
         }),
@@ -127,15 +121,17 @@ export default function ImprovementPanel({
 
   const latest = data.top2_share_latest;
   const first = data.top2_share_first;
-  const meanRank =
-    [...data.points].reverse().find((p) => p.mean_rank !== null)?.mean_rank ??
-    null;
-  const firstRank =
-    data.points.find((p) => p.mean_rank !== null)?.mean_rank ?? null;
+  const ranked = data.points.filter((p) => p.mean_rank !== null);
+  const meanRank = ranked.at(-1)?.mean_rank ?? null;
+  const firstRank = ranked[0]?.mean_rank ?? null;
+  const scoredCount = data.points.filter((p) => p.top2_share !== null).length;
 
   return (
+    // relative + overflow-hidden contains the sr-only table: it is absolutely
+    // positioned, and a table ignores sr-only's 1px width, so without this it
+    // contributes ~600px of phantom horizontal overflow to the rail.
     <aside
-      className="rounded-[3px] border p-5"
+      className="relative overflow-hidden rounded-[3px] border p-5"
       style={{ background: SURFACE, borderColor: "var(--field)" }}
       aria-label="Evidence that the agent improved"
     >
@@ -176,77 +172,247 @@ export default function ImprovementPanel({
         />
       </div>
 
-      {data.points.length >= 2 && (
-        <>
-          <p
-            className="mt-5 mb-1 text-[11px]"
-            style={{ color: "var(--ink-3)" }}
-          >
-            Teaching-style weight by profile version
-          </p>
-          {/* Legend doubles as the current-value readout, so identity is never
-              carried by colour alone. Direct end-labels would collide at this size. */}
-          <div className="mb-1 flex flex-wrap gap-x-3 gap-y-1">
-            {SERIES.map(({ style, color }) => (
-              <span key={style} className="flex items-center gap-1.5">
-                <span
-                  className="size-[6px] rounded-full"
-                  style={{ background: color }}
-                />
-                <span className="text-[10px]" style={{ color: "var(--ink-3)" }}>
-                  {STYLE_LABEL[style]}
-                </span>
-                <span
-                  className="mono text-[10px]"
-                  style={{ color: "var(--ink-4)" }}
-                >
-                  {data.current_weights[style].toFixed(2).replace("0.", ".")}
-                </span>
-              </span>
-            ))}
-          </div>
+      {scoredCount >= 2 && (
+        <Block title="Share of picks already in the top two">
           <div ref={chartRef} />
-        </>
+        </Block>
+      )}
+
+      {data.ladder.length > 0 && (
+        <Block
+          title="The same topics, re-ranked"
+          note={`Found before the agent knew anything${data.ladder_subject ? ` · ${data.ladder_subject}` : ""}`}
+        >
+          <ul className="flex list-none flex-col gap-1.5 p-0">
+            {data.ladder.map((row) => (
+              <li key={row.title} className="flex items-center gap-2">
+                <span
+                  className="mono shrink-0 text-[10px] tabular-nums"
+                  style={{ color: "var(--ink-5)" }}
+                >
+                  {row.rank_before}→{row.rank_after}
+                </span>
+                <span
+                  className="mono w-6 shrink-0 text-[10px]"
+                  style={{
+                    color:
+                      row.moved > 0
+                        ? UP
+                        : row.moved < 0
+                          ? "var(--ink-5)"
+                          : "transparent",
+                  }}
+                >
+                  {row.moved > 0
+                    ? `↑${row.moved}`
+                    : row.moved < 0
+                      ? `↓${-row.moved}`
+                      : "·"}
+                </span>
+                <span
+                  className="size-[5px] shrink-0 rounded-full"
+                  style={{ background: STYLE_CHART[row.teaching_style] }}
+                />
+                {/* min-w-0 is what lets truncate actually truncate: without it
+                    a nowrap child forces the flex row to the title's width. */}
+                <span
+                  className="min-w-0 truncate text-[11px]"
+                  style={{ color: "var(--ink-2)" }}
+                  title={row.title}
+                >
+                  {row.title}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Block>
+      )}
+
+      <Block title="Teaching-style weight">
+        <div className="flex flex-col gap-2">
+          {ORDER.map((style) => {
+            const before = data.start_weights[style];
+            const after = data.current_weights[style];
+            return (
+              <div key={style} className="flex flex-col gap-1">
+                <div className="flex items-baseline justify-between">
+                  <span
+                    className="text-[10.5px]"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    {STYLE_LABEL[style]}
+                  </span>
+                  <span
+                    className="mono text-[10px]"
+                    style={{ color: "var(--ink-4)" }}
+                  >
+                    {fmt(before)} →{" "}
+                    <span style={{ color: "var(--ink-2)" }}>{fmt(after)}</span>
+                  </span>
+                </div>
+                <Bar value={before} color="#d9cdb6" />
+                <Bar value={after} color={STYLE_CHART[style]} />
+              </div>
+            );
+          })}
+        </div>
+      </Block>
+
+      {data.queries && (
+        <Block
+          title="What it asked the web"
+          note="Rebuilt from the profile, not logged"
+        >
+          <div className="flex flex-col gap-2">
+            <QueryLine
+              label="v0"
+              text={data.queries.first}
+              other={data.queries.latest}
+              muted
+            />
+            <QueryLine
+              label={`v${data.profile_version}`}
+              text={data.queries.latest}
+              other={data.queries.first}
+            />
+          </div>
+        </Block>
       )}
 
       <p
-        className="mt-3 text-[10.5px] leading-[1.5]"
+        className="mt-4 text-[10.5px] leading-[1.5]"
         style={{ color: "var(--ink-4)" }}
       >
         {data.unchanged_selections > 0
           ? `${data.unchanged_selections} of ${data.selections} selections left the weights unchanged — a balanced pick teaches the agent nothing, and the ranking correctly does not move.`
-          : "Rebuilt from stored selections, not logged at request time."}
+          : "Every figure is rebuilt from stored selections, not logged at request time."}
       </p>
 
-      {/* Numbers in text, for anyone who cannot read the chart. */}
+      {/* Numbers in text, for anyone who cannot read the charts. */}
       <table className="sr-only">
-        <caption>Teaching-style weight by profile version</caption>
+        <caption>Agent improvement by selection</caption>
         <thead>
           <tr>
-            <th>Version</th>
-            {SERIES.map(({ style }) => (
-              <th key={style}>{STYLE_LABEL[style]}</th>
-            ))}
+            <th>Selection</th>
             <th>Picks in top two</th>
+            <th>Mean rank</th>
+            {ORDER.map((s) => (
+              <th key={s}>{STYLE_LABEL[s]} weight</th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {data.points.map((point) => (
-            <tr key={point.version}>
-              <td>{point.version}</td>
-              {SERIES.map(({ style }) => (
-                <td key={style}>{point.weights[style].toFixed(2)}</td>
-              ))}
+            <tr key={point.n}>
+              <td>{point.n}</td>
               <td>
                 {point.top2_share === null
                   ? "—"
                   : `${Math.round(point.top2_share * 100)}%`}
               </td>
+              <td>
+                {point.mean_rank === null ? "—" : point.mean_rank.toFixed(1)}
+              </td>
+              {ORDER.map((s) => (
+                <td key={s}>{point.weights[s].toFixed(2)}</td>
+              ))}
             </tr>
           ))}
         </tbody>
       </table>
     </aside>
+  );
+}
+
+/* ---------- pieces ---------- */
+
+function Block({
+  title,
+  note,
+  children,
+}: {
+  title: string;
+  note?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      className="mt-5 border-t pt-4"
+      style={{ borderColor: "var(--rule-soft)" }}
+    >
+      <p className="mb-0.5 text-[11px]" style={{ color: "var(--ink-3)" }}>
+        {title}
+      </p>
+      {note && (
+        <p className="mb-2 text-[9.5px]" style={{ color: "var(--ink-5)" }}>
+          {note}
+        </p>
+      )}
+      {!note && <div className="h-2" />}
+      {children}
+    </section>
+  );
+}
+
+function Bar({ value, color }: { value: number; color: string }) {
+  return (
+    <div
+      className="h-[4px] overflow-hidden rounded-full"
+      style={{ background: "#eee7da" }}
+    >
+      <div
+        className="h-full rounded-full transition-[width] duration-500"
+        style={{ width: `${Math.round(value * 100)}%`, background: color }}
+      />
+    </div>
+  );
+}
+
+/** Highlights only the words that differ between the two queries. */
+function QueryLine({
+  label,
+  text,
+  other,
+  muted = false,
+}: {
+  label: string;
+  text: string;
+  other: string;
+  muted?: boolean;
+}) {
+  const otherWords = new Set(other.split(/\s+/));
+  return (
+    <div className="flex gap-2">
+      <span
+        className="mono shrink-0 text-[9.5px]"
+        style={{ color: "var(--ink-5)" }}
+      >
+        {label}
+      </span>
+      <p
+        className="m-0 text-[10.5px] leading-[1.5]"
+        style={{ color: muted ? "var(--ink-5)" : "var(--ink-2)" }}
+      >
+        {text.split(/(\s+)/).map((token, i) =>
+          token.trim() && !otherWords.has(token) ? (
+            <span
+              key={i}
+              style={{
+                background: muted ? "#f0e8da" : "#f6e6c8",
+                color: muted ? "var(--ink-4)" : "#6d4509",
+                fontWeight: 500,
+                padding: "0 2px",
+                borderRadius: "2px",
+              }}
+            >
+              {token}
+            </span>
+          ) : (
+            token
+          ),
+        )}
+      </p>
+    </div>
   );
 }
 
@@ -273,7 +439,7 @@ function Stat({
       {was && (
         <span
           className="mono text-[10px]"
-          style={{ color: better ? "#2f8a63" : "var(--ink-4)" }}
+          style={{ color: better ? UP : "var(--ink-4)" }}
         >
           was {was}
         </span>
@@ -281,3 +447,5 @@ function Stat({
     </div>
   );
 }
+
+const fmt = (v: number) => v.toFixed(2).replace("0.", ".");
