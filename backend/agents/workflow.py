@@ -56,11 +56,14 @@ def _crew_output(role: str, goal: str, task_description: str, expected_output: s
     except ImportError as error:
         raise AgentWorkflowError("CrewAI is not installed. Install backend requirements first.") from error
 
-    model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+    model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
     llm = LLM(model=f"anthropic/{model}")
     agent = Agent(role=role, goal=goal, backstory="You produce grounded curriculum material.", llm=llm, verbose=False)
     task = Task(description=task_description, expected_output=expected_output, agent=agent)
-    result = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False).kickoff()
+    try:
+        result = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False).kickoff()
+    except Exception as error:
+        raise AgentWorkflowError("The configured LLM provider did not complete the agent task.") from error
     raw = getattr(result, "raw", str(result)).strip()
     return _parse_json(raw)
 
