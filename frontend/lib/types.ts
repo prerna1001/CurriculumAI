@@ -52,6 +52,14 @@ export interface PublishResponse {
   external_url: string | null;
 }
 
+export interface CurriculumPublishResponse {
+  status: PublishStatus;
+  external_id: string | null;
+  external_url: string | null;
+  modules: number;
+  sessions: number;
+}
+
 export interface ErrorBody {
   error: { code: string; message: string; retryable: boolean };
 }

@@ -93,6 +93,65 @@ def test_empty_outline_does_not_crash():
     assert "no sessions" in html
 
 
+# --- a curriculum assembled from several approved modules ----------------
+
+def _module(title: str, topics: list[str]) -> dict:
+    return {
+        "title": title,
+        "sessions": [
+            {
+                "topic": topic,
+                "activity": f"Activity for {topic}",
+                "learning_objective": f"Objective for {topic}",
+                "source_references": [{"source_id": topic, "url": "https://example.org/x"}],
+            }
+            for topic in topics
+        ],
+    }
+
+
+CURRICULUM = {
+    "title": "Machine Learning — course outline",
+    "modules": [_module("First module", ["A"]), _module("Second module", ["B", "C"])],
+}
+
+
+def test_modules_render_with_continuous_numbering():
+    html = render_html(CURRICULUM, "curriculum_1")
+    # Numbering must not restart per module — it is one course.
+    for number in ("01", "02", "03"):
+        assert f"<span class='num'>{number}</span>" in html
+    assert "3 sessions" in html
+
+
+def test_every_module_keeps_its_own_heading():
+    html = render_html(CURRICULUM, "curriculum_1")
+    assert html.count("class='module'") == 2
+    assert "First module" in html and "Second module" in html
+
+
+def test_module_titles_are_escaped_like_everything_else():
+    html = render_html(
+        {"title": "t", "modules": [_module("<script>alert(1)</script>", ["A"])]},
+        "curriculum_1",
+    )
+    assert "<script" not in html
+    assert "&lt;script&gt;" in html
+
+
+def test_malformed_modules_are_skipped_not_crashed():
+    html = render_html(
+        {"title": "t", "modules": ["nonsense", {"title": "ok"}, _module("Real", ["A"])]},
+        "curriculum_1",
+    )
+    assert "Real" in html
+    assert "1 session" in html
+
+
+def test_empty_modules_list_does_not_crash():
+    assert "no sessions" in render_html({"title": "t", "modules": []}, "c")
+
+
 def test_non_dict_outline_rejected():
     with pytest.raises(ValueError):
         render_html([], "sel_x")  # type: ignore[arg-type]

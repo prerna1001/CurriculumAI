@@ -26,6 +26,10 @@ h1 { font-size: 1.75rem; line-height: 1.25; margin: 0 0 .25rem; letter-spacing: 
 .meta { color: #6b6b6b; font-size: .8125rem; margin: 0 0 2.5rem; }
 section { padding: 1.5rem 0; border-top: 1px solid #e5e2dd; }
 h2 { font-size: 1.0625rem; margin: 0 0 .75rem; }
+h2.module { font-size: .6875rem; text-transform: uppercase; letter-spacing: .1em;
+            color: #8a857d; margin: 2.5rem 0 0; padding-top: 1.5rem;
+            border-top: 2px solid #1a1a1a; }
+h2.module:first-of-type { margin-top: 1rem; }
 .num { color: #a8a29a; font-variant-numeric: tabular-nums; margin-right: .5rem; }
 dl { margin: 0; }
 dt { font-size: .6875rem; text-transform: uppercase; letter-spacing: .06em;
@@ -91,6 +95,10 @@ def _session_block(index: int, session: object) -> str:
 def render_html(outline: dict, selection_id: str) -> str:
     """Render a saved outline to a standalone HTML document.
 
+    Accepts either shape: a single module with `sessions`, or a curriculum
+    assembled from several approved modules with `modules`. Session numbering
+    runs continuously across modules so the document reads as one course.
+
     Pure and deterministic: the same outline always produces the same bytes, so
     the preview the professor approved and the published artifact can be
     compared directly.
@@ -99,15 +107,33 @@ def render_html(outline: dict, selection_id: str) -> str:
         raise ValueError("outline must be a dict")
 
     title = html.escape(str(outline.get("title") or "Untitled module"))
-    sessions = outline.get("sessions")
-    if not isinstance(sessions, list):
-        sessions = []
+    modules = outline.get("modules")
 
-    blocks = "".join(
-        _session_block(i, s) for i, s in enumerate(sessions, start=1)
-    ) or "<section><p>This outline has no sessions.</p></section>"
+    if isinstance(modules, list):
+        parts: list[str] = []
+        count = 0
+        for module in modules:
+            if not isinstance(module, dict):
+                continue
+            sessions = module.get("sessions")
+            if not isinstance(sessions, list):
+                continue
+            module_title = html.escape(str(module.get("title") or "Untitled module"))
+            parts.append(f"<h2 class='module'>{module_title}</h2>")
+            for session in sessions:
+                count += 1
+                parts.append(_session_block(count, session))
+        blocks = "".join(parts)
+    else:
+        sessions = outline.get("sessions")
+        if not isinstance(sessions, list):
+            sessions = []
+        blocks = "".join(_session_block(i, s) for i, s in enumerate(sessions, start=1))
+        count = len(sessions)
 
-    count = len(sessions)
+    if not blocks:
+        blocks = "<section><p>This outline has no sessions.</p></section>"
+
     plural = "session" if count == 1 else "sessions"
 
     return (

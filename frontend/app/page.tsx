@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import ImprovementPanel from "./ImprovementPanel";
-import { ApiError, publish, search, select } from "@/lib/api";
+import { ApiError, publishCurriculum, search, select } from "@/lib/api";
 import {
   STYLE_LABEL,
   type Card,
-  type PublishResponse,
+  type CurriculumPublishResponse,
   type SearchResponse,
   type SelectResponse,
   type TeachingStyle,
@@ -33,10 +33,15 @@ export default function Home() {
   const [previousOrder, setPreviousOrder] = useState<string[] | null>(null);
   const [chosen, setChosen] = useState<Set<string>>(new Set());
 
-  // Kept deliberately separate from `result`: a new search must never erase
-  // the outline the professor already approved.
-  const [selection, setSelection] = useState<SelectResponse | null>(null);
-  const [published, setPublished] = useState<PublishResponse | null>(null);
+  // Every approved module, in the order the professor approved them. Kept
+  // separate from `result` so a new search never disturbs the curriculum.
+  const [selections, setSelections] = useState<SelectResponse[]>([]);
+  // A search session accepts exactly one committed selection, so once a search
+  // has been used its cards are spent — the professor searches again to add more.
+  const [spentSessions, setSpentSessions] = useState<Set<string>>(new Set());
+  const [published, setPublished] = useState<CurriculumPublishResponse | null>(
+    null,
+  );
 
   const [busy, setBusy] = useState<"search" | "select" | "publish" | null>(
     null,
@@ -44,6 +49,12 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   const searchCount = previousOrder ? 2 : result ? 1 : 0;
+  const latest = selections.at(-1) ?? null;
+  const totalSessions = selections.reduce(
+    (n, s) => n + s.outline.sessions.length,
+    0,
+  );
+  const spent = result ? spentSessions.has(result.session_id) : false;
 
   async function run<T>(
     kind: "search" | "select" | "publish",
@@ -77,14 +88,30 @@ export default function Home() {
       select(result.session_id, [...chosen]),
     );
     if (!next) return;
-    setSelection(next);
+    setSelections((current) =>
+      current.some((s) => s.selection_id === next.selection_id)
+        ? current
+        : [...current, next],
+    );
+    setSpentSessions((current) => new Set(current).add(result.session_id));
+    setChosen(new Set());
     setPublished(null);
   }
 
   async function onPublish() {
-    if (!selection) return;
-    const next = await run("publish", () => publish(selection.selection_id));
+    if (selections.length === 0) return;
+    const next = await run("publish", () =>
+      publishCurriculum(selections.map((s) => s.selection_id)),
+    );
     if (next) setPublished(next);
+  }
+
+  function removeModule(selectionId: string) {
+    setSelections((current) =>
+      current.filter((s) => s.selection_id !== selectionId),
+    );
+    // The document changed, so an earlier publish no longer describes it.
+    setPublished(null);
   }
 
   function toggle(id: string) {
@@ -105,7 +132,7 @@ export default function Home() {
   }
 
   return (
-    <div className="mx-auto grid max-w-[764px] grid-cols-1 gap-12 px-6 pb-24 pt-16 xl:max-w-[1136px] xl:grid-cols-[764px_300px]">
+    <div className="mx-auto grid max-w-[764px] grid-cols-1 gap-12 px-6 pt-16 pb-24 xl:max-w-[1136px] xl:grid-cols-[764px_300px]">
       <main>
         <header className="flex flex-col gap-3.5">
           <div className="flex items-center gap-2.5">
@@ -117,11 +144,11 @@ export default function Home() {
               Curriculum design · learning agent
             </span>
           </div>
-          <h1 className="serif m-0 text-[46px] font-medium leading-none tracking-[-0.02em]">
+          <h1 className="serif m-0 text-[46px] leading-none font-medium tracking-[-0.02em]">
             CurriculumAI
           </h1>
           <p
-            className="serif m-0 max-w-[33em] text-[18px] italic leading-[1.5]"
+            className="serif m-0 max-w-[33em] text-[18px] leading-[1.5] italic"
             style={{ color: "var(--ink-2)", textWrap: "pretty" }}
           >
             Pick the topics you would actually teach. The agents learn your
@@ -238,193 +265,256 @@ export default function Home() {
             <div className="mt-6 flex flex-wrap items-center gap-4">
               <button
                 onClick={onCommit}
-                disabled={busy !== null || chosen.size === 0}
+                disabled={busy !== null || chosen.size === 0 || spent}
                 className="label rounded-[3px] px-5 py-3 disabled:opacity-35"
                 style={{ background: "var(--ink)", color: "var(--paper)" }}
               >
                 {busy === "select"
                   ? "Saving…"
-                  : `Use these topics${chosen.size ? ` · ${chosen.size}` : ""}`}
+                  : `${selections.length ? "Add to curriculum" : "Use these topics"}${
+                      chosen.size ? ` · ${chosen.size}` : ""
+                    }`}
               </button>
               <span className="text-[12.5px]" style={{ color: "var(--ink-4)" }}>
-                Your picks train the next search.
+                {spent
+                  ? "Added. Search again to add more to the curriculum."
+                  : selections.length
+                    ? "Added to what you have already approved."
+                    : "Your picks train the next search."}
               </span>
             </div>
           </section>
         )}
 
-        {selection && (
-          <>
-            <div
-              className="mt-13 rounded-[3px] border px-6 py-6"
-              style={{
-                background: "var(--accent-bg)",
-                borderColor: "var(--accent-border)",
-                borderLeft: "3px solid var(--accent)",
-              }}
+        {latest && (
+          <div
+            className="mt-13 rounded-[3px] border px-6 py-6"
+            style={{
+              background: "var(--accent-bg)",
+              borderColor: "var(--accent-border)",
+              borderLeft: "3px solid var(--accent)",
+            }}
+          >
+            <div className="mb-3 flex items-center gap-2.5">
+              <TrendIcon />
+              <span
+                className="label"
+                style={{ fontSize: "10px", color: "var(--accent)" }}
+              >
+                What the agents learned
+              </span>
+            </div>
+            <p
+              className="serif m-0 text-[21px] leading-[1.4] tracking-[-0.005em]"
+              style={{ color: "var(--accent-ink)", textWrap: "pretty" }}
             >
-              <div className="mb-3 flex items-center gap-2.5">
-                <TrendIcon />
-                <span
-                  className="label"
-                  style={{ fontSize: "10px", color: "var(--accent)" }}
-                >
-                  What the agents learned
-                </span>
-              </div>
-              <p
-                className="serif m-0 text-[21px] leading-[1.4] tracking-[-0.005em]"
-                style={{ color: "var(--accent-ink)", textWrap: "pretty" }}
+              {latest.learned_change}
+            </p>
+            <p
+              className="mt-2.5 text-[13px] leading-[1.6]"
+              style={{ color: "var(--accent-soft)" }}
+            >
+              {latest.preference_summary} The next search reweights the ranking{" "}
+              <em>and</em> rewrites the query sent to the web.
+            </p>
+          </div>
+        )}
+
+        {selections.length > 0 && (
+          <section
+            className="mt-4 rounded-[3px] border px-9 py-8"
+            style={{ background: "var(--card)", borderColor: "var(--field)" }}
+          >
+            <div
+              className="flex items-baseline justify-between gap-5 border-b pb-4"
+              style={{ borderColor: "var(--ink)" }}
+            >
+              <span
+                className="label"
+                style={{ fontSize: "10px", color: "var(--ink-4)" }}
               >
-                {selection.learned_change}
-              </p>
-              <p
-                className="mt-2.5 text-[13px] leading-[1.6]"
-                style={{ color: "var(--accent-soft)" }}
+                Your curriculum
+              </span>
+              <span
+                className="mono text-[10px]"
+                style={{ color: "var(--ink-5)" }}
               >
-                {selection.preference_summary} The next search reweights the
-                ranking <em>and</em> rewrites the query sent to the web.
-              </p>
+                {selections.length}{" "}
+                {selections.length === 1 ? "module" : "modules"} ·{" "}
+                {totalSessions} {totalSessions === 1 ? "session" : "sessions"}
+              </span>
             </div>
 
-            <section
-              className="mt-4 rounded-[3px] border px-9 py-8"
-              style={{ background: "var(--card)", borderColor: "var(--field)" }}
-            >
-              <div
-                className="flex items-baseline justify-between gap-5 border-b pb-4"
-                style={{ borderColor: "var(--ink)" }}
-              >
-                <span
-                  className="label"
-                  style={{ fontSize: "10px", color: "var(--ink-4)" }}
-                >
-                  Approved outline
-                </span>
-                <span
-                  className="mono text-[10px]"
-                  style={{ color: "var(--ink-5)" }}
-                >
-                  {selection.selection_id.slice(0, 12)} · immutable
-                </span>
-              </div>
+            {selections.map((selection, moduleIndex) => {
+              // Sessions are numbered continuously so it reads as one course.
+              const offset = selections
+                .slice(0, moduleIndex)
+                .reduce((n, s) => n + s.outline.sessions.length, 0);
 
-              <h2
-                className="serif mt-5 max-w-[20em] text-[28px] font-medium leading-[1.22] tracking-[-0.015em]"
-                style={{ textWrap: "pretty" }}
-              >
-                {selection.outline.title}
-              </h2>
+              return (
+                <article
+                  key={selection.selection_id}
+                  className={moduleIndex > 0 ? "mt-10 border-t pt-8" : "mt-5"}
+                  style={
+                    moduleIndex > 0
+                      ? { borderColor: "var(--rule-soft)" }
+                      : undefined
+                  }
+                >
+                  <div className="flex items-start justify-between gap-5">
+                    <h2
+                      className="serif m-0 max-w-[18em] text-[24px] leading-[1.22] font-medium tracking-[-0.015em]"
+                      style={{ textWrap: "pretty" }}
+                    >
+                      {selection.outline.title}
+                    </h2>
+                    <button
+                      onClick={() => removeModule(selection.selection_id)}
+                      disabled={busy !== null}
+                      className="label shrink-0 rounded-[3px] border px-2.5 py-1.5 disabled:opacity-35"
+                      style={{
+                        fontSize: "8.5px",
+                        color: "var(--ink-4)",
+                        borderColor: "var(--field)",
+                      }}
+                      title="Drop this module from the curriculum"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <p
+                    className="mono mt-1.5 text-[10px]"
+                    style={{ color: "var(--ink-5)" }}
+                  >
+                    {selection.selection_id.slice(0, 12)} · immutable
+                  </p>
 
-              <ol className="mt-7 flex list-none flex-col gap-6 p-0">
-                {selection.outline.sessions.map((session, i) => (
-                  <li key={i} className="flex flex-col gap-6">
-                    {i > 0 && (
-                      <div
-                        className="h-px"
-                        style={{ background: "var(--rule-soft)" }}
-                      />
-                    )}
-                    <div className="flex gap-5">
-                      <span
-                        className="mono shrink-0 pt-1 text-[12px]"
-                        style={{ color: "var(--accent)" }}
-                      >
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <div className="flex min-w-0 flex-col gap-3.5">
-                        <h3 className="serif m-0 text-[18px] font-semibold leading-[1.3]">
-                          {session.topic}
-                        </h3>
-                        <Detail label="Activity">{session.activity}</Detail>
-                        <Detail label="Learning objective">
-                          {session.learning_objective}
-                        </Detail>
-                        <div className="flex flex-col gap-1.5">
+                  <ol className="mt-6 flex list-none flex-col gap-6 p-0">
+                    {selection.outline.sessions.map((session, i) => (
+                      <li key={i} className="flex flex-col gap-6">
+                        {i > 0 && (
+                          <div
+                            className="h-px"
+                            style={{ background: "var(--rule-soft)" }}
+                          />
+                        )}
+                        <div className="flex gap-5">
                           <span
-                            className="label"
-                            style={{ fontSize: "9px", color: "var(--ink-5)" }}
+                            className="mono shrink-0 pt-1 text-[12px]"
+                            style={{ color: "var(--accent)" }}
                           >
-                            {session.source_references.length === 1
-                              ? "Source"
-                              : "Sources"}
+                            {String(offset + i + 1).padStart(2, "0")}
                           </span>
-                          <div className="flex flex-col gap-1">
-                            {session.source_references.map((ref) => (
-                              <a
-                                key={ref.source_id}
-                                href={ref.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="self-start break-all text-[12.5px]"
+                          <div className="flex min-w-0 flex-col gap-3.5">
+                            <h3 className="serif m-0 text-[18px] leading-[1.3] font-semibold">
+                              {session.topic}
+                            </h3>
+                            <Detail label="Activity">{session.activity}</Detail>
+                            <Detail label="Learning objective">
+                              {session.learning_objective}
+                            </Detail>
+                            <div className="flex flex-col gap-1.5">
+                              <span
+                                className="label"
+                                style={{
+                                  fontSize: "9px",
+                                  color: "var(--ink-5)",
+                                }}
                               >
-                                {sourceLabel(ref.url)} ↗
-                              </a>
-                            ))}
+                                {session.source_references.length === 1
+                                  ? "Source"
+                                  : "Sources"}
+                              </span>
+                              <div className="flex flex-col gap-1">
+                                {session.source_references.map((ref) => (
+                                  <a
+                                    key={ref.source_id}
+                                    href={ref.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="self-start text-[12.5px] break-all"
+                                  >
+                                    {sourceLabel(ref.url)} ↗
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ol>
+                      </li>
+                    ))}
+                  </ol>
+                </article>
+              );
+            })}
 
-              <div
-                className="mt-8 flex flex-wrap items-center gap-4 border-t pt-6"
-                style={{ borderColor: "var(--rule-soft)" }}
+            <div
+              className="mt-8 flex flex-wrap items-center gap-4 border-t pt-6"
+              style={{ borderColor: "var(--rule-soft)" }}
+            >
+              <button
+                onClick={onPublish}
+                disabled={busy !== null || published?.status === "published"}
+                className="label flex items-center gap-2.5 rounded-[3px] px-5 py-3 disabled:opacity-45"
+                style={{ background: "var(--accent)", color: "var(--card)" }}
               >
-                <button
-                  onClick={onPublish}
-                  disabled={busy !== null || published?.status === "published"}
-                  className="label flex items-center gap-2.5 rounded-[3px] px-5 py-3 disabled:opacity-45"
-                  style={{ background: "var(--accent)", color: "var(--card)" }}
-                >
-                  <SendIcon />
-                  {busy === "publish"
-                    ? "Publishing…"
-                    : published?.status === "published"
-                      ? "Published"
-                      : "Approve & publish"}
-                </button>
+                <SendIcon />
+                {busy === "publish"
+                  ? "Publishing…"
+                  : published?.status === "published"
+                    ? "Published"
+                    : `Approve & publish${selections.length > 1 ? " all" : ""}`}
+              </button>
 
-                {published?.status === "published" && published.external_url ? (
-                  <a
-                    href={published.external_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[12.5px]"
-                  >
-                    Open published artifact ↗
-                  </a>
-                ) : published?.status === "publishing" ? (
-                  <span
-                    className="text-[12.5px]"
-                    style={{ color: "var(--ink-4)" }}
-                  >
-                    Still publishing…
-                  </span>
-                ) : published?.status === "failed" ? (
-                  <span className="text-[12.5px]" style={{ color: "#8a3323" }}>
-                    Publishing failed.
-                  </span>
-                ) : (
-                  <span
-                    className="text-[12.5px]"
-                    style={{ color: "var(--ink-4)" }}
-                  >
-                    Rendered in a sandbox, delivered to your inbox.
-                  </span>
-                )}
-              </div>
-            </section>
-          </>
+              {published?.status === "published" && published.external_url ? (
+                <a
+                  href={published.external_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[12.5px]"
+                >
+                  Open published curriculum ↗
+                </a>
+              ) : published?.status === "publishing" ? (
+                <span
+                  className="text-[12.5px]"
+                  style={{ color: "var(--ink-4)" }}
+                >
+                  Still publishing…
+                </span>
+              ) : published?.status === "failed" ? (
+                <span className="text-[12.5px]" style={{ color: "#8a3323" }}>
+                  Publishing failed.
+                </span>
+              ) : (
+                <span
+                  className="text-[12.5px]"
+                  style={{ color: "var(--ink-4)" }}
+                >
+                  {selections.length > 1
+                    ? `All ${selections.length} modules as one document.`
+                    : "Rendered in a sandbox, delivered to your inbox."}
+                </span>
+              )}
+            </div>
+
+            {selections.length > 0 && (
+              <p
+                className="mt-3 text-[11px] leading-[1.5]"
+                style={{ color: "var(--ink-5)" }}
+              >
+                Removing a module drops it from this document. The agents keep
+                what they learned from it — you did choose it.
+              </p>
+            )}
+          </section>
         )}
       </main>
 
       {/* The panel grows with history, so cap it and scroll rather than
           letting it run off the bottom of a short screen. */}
       <div className="xl:sticky xl:top-16 xl:max-h-[calc(100vh-8rem)] xl:self-start xl:overflow-x-hidden xl:overflow-y-auto">
-        <ImprovementPanel refreshKey={selection?.profile_version ?? 0} />
+        <ImprovementPanel refreshKey={latest?.profile_version ?? 0} />
       </div>
     </div>
   );
@@ -447,7 +537,7 @@ function Field({
         style={{ color: "var(--ink-4)" }}
         aria-hidden={!label}
       >
-        {label ?? " "}
+        {label ?? " "}
       </span>
       {children}
     </div>
@@ -541,7 +631,7 @@ function TopicCard({
             </span>
             {delta !== null && delta !== 0 && <DeltaTag delta={delta} />}
           </span>
-          <span className="serif block text-[20px] font-medium leading-[1.25] tracking-[-0.005em]">
+          <span className="serif block text-[20px] leading-[1.25] font-medium tracking-[-0.005em]">
             {card.title}
           </span>
           <span
@@ -551,7 +641,7 @@ function TopicCard({
             {card.description}
           </span>
           <span
-            className="serif mt-0.5 block text-[14px] italic leading-[1.5]"
+            className="serif mt-0.5 block text-[14px] leading-[1.5] italic"
             style={{ color: "#857b70" }}
           >
             {card.why_suggested}
@@ -561,7 +651,7 @@ function TopicCard({
           href={card.source_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-1 self-start break-all text-[11px] tracking-[0.04em]"
+          className="mt-1 self-start text-[11px] tracking-[0.04em] break-all"
         >
           {hostname(card.source_url)} ↗
         </a>

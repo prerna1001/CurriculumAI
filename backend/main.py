@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from backend.agents.workflow import AgentWorkflowError, candidates_from_research, generate_outline, research_candidates
+from backend.curriculum import router as curriculum_router
 from backend.evals import router as evals_router
 from backend.fixtures import fixture_candidates
 from backend.integrations.one_publish import publish_artifact
@@ -61,6 +62,7 @@ app.add_middleware(
 
 
 app.include_router(evals_router)
+app.include_router(curriculum_router)
 
 
 def repository() -> Repository:
