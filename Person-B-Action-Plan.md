@@ -120,9 +120,9 @@ weights: theory=0.20, case_study=0.60, project=0.20
 
 ### 5. Live agent workflow
 
-- [ ] Implement You.com evidence retrieval and reject candidates without usable web sources.
-- [ ] Create the researcher CrewAI role and include `ProfileContext` in its task.
-- [ ] Create the writer CrewAI role and include `ProfileContext` in its task.
+- [x] Implement You.com evidence retrieval and reject candidates without usable web sources.
+- [x] Create the researcher CrewAI role and include `ProfileContext` in its task.
+- [x] Create the writer CrewAI role and include `ProfileContext` in its task.
 - [ ] Validate subject relevance, level, evidence, and teaching style before ranking.
 - [ ] Generate one cited outline session for every unique selected card.
 - [ ] Replace fixture search and outline generation with the live workflow.

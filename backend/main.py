@@ -11,7 +11,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from backend.agents.workflow import AgentWorkflowError, candidates_from_research, generate_outline, research_candidates
 from backend.fixtures import fixture_candidates
+from backend.integrations.you_search import YouSearchError
 from backend.learning.ranking import rank_candidates
 from backend.schemas import (
     ErrorDetail,
@@ -54,6 +56,10 @@ def repository() -> Repository:
     return Repository(os.getenv("CURRICULUMAI_DATABASE_PATH", "./data/curriculumai.db"))
 
 
+def live_mode() -> bool:
+    return os.getenv("CURRICULUMAI_MODE", "fixture").lower() == "live"
+
+
 def error_response(status_code: int, code: str, message: str, retryable: bool) -> JSONResponse:
     payload = ErrorResponse(error=ErrorDetail(code=code, message=message, retryable=retryable))
     return JSONResponse(status_code=status_code, content=payload.model_dump())
@@ -70,13 +76,24 @@ def health() -> HealthResponse:
     return HealthResponse(status="ok")
 
 
-@app.post("/api/search", response_model=SearchResponse, responses={422: {"model": ErrorResponse}})
+@app.post(
+    "/api/search",
+    response_model=SearchResponse,
+    responses={422: {"model": ErrorResponse}, 502: {"model": ErrorResponse}},
+)
 def search(request: SearchRequest) -> SearchResponse:
     """Return four fixture cards ranked using one saved profile snapshot."""
     store = repository()
     profile = store.profile_context()
     session_id = store.create_session(request.subject, request.level, profile.version)
-    candidates = fixture_candidates(session_id)
+    try:
+        if live_mode():
+            ideas = research_candidates(request.subject, request.level, profile)
+            candidates = candidates_from_research(session_id, ideas)
+        else:
+            candidates = fixture_candidates(session_id)
+    except (YouSearchError, AgentWorkflowError) as error:
+        return error_response(502, "provider_failure", str(error), True)
     store.save_candidates(session_id, candidates)
     ranked = rank_candidates(candidates, profile)
     response: dict[str, Any] = {
@@ -109,6 +126,8 @@ def outline_for_selection(session_id: str, card_ids: list[str]) -> dict[str, Any
     ]
     if len(candidates) != len(requested_ids):
         raise InvalidSelection("Every selected card must belong to the search session.")
+    if live_mode():
+        return generate_outline(candidates, repository().profile_context())
     return {
         "title": "CurriculumAI topic module",
         "sessions": [
