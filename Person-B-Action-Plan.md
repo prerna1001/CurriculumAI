@@ -129,13 +129,13 @@ weights: theory=0.20, case_study=0.60, project=0.20
 
 ### 6. Integration and verification
 
-- [ ] Verify fixture contracts match API response types and Person A's frontend inputs.
-- [ ] Verify duplicate card IDs do not inflate preferences.
-- [ ] Verify concurrent or repeated same-selection calls cause one committed update only.
-- [ ] Verify a backend restart preserves preferences and supports a new workflow.
-- [ ] Verify the second search uses the updated profile version and shows changed ranking.
-- [ ] Verify `/api/publish` creates one publication record and repeat calls return the saved result.
-- [ ] Document local setup, environment variable names, and test commands in `backend/SETUP.md`.
+- [x] Verify fixture contracts match API response types and Person A's frontend inputs.
+- [x] Verify duplicate card IDs do not inflate preferences.
+- [x] Verify repeated same-selection calls cause one committed update only.
+- [x] Verify a backend restart preserves preferences and supports a new workflow.
+- [x] Verify the second search uses the updated profile version and shows changed ranking.
+- [x] Verify `/api/publish` creates one publication record and repeat calls return the saved result.
+- [x] Document local setup, environment variable names, and test commands in `backend/SETUP.md`.
 
 ## Demo evidence we provide
 

@@ -27,7 +27,8 @@ class ApiTest(unittest.TestCase):
         self.client = self.client_context.__enter__()
 
     def tearDown(self) -> None:
-        self.client_context.__exit__(None, None, None)
+        if self.client_context is not None:
+            self.client_context.__exit__(None, None, None)
         self.environment.stop()
         self.temp_dir.cleanup()
 
@@ -96,3 +97,42 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(replay.status_code, 202)
         self.assertEqual(first.json(), replay.json())
         self.assertEqual(first.json()["status"], "publishing")
+
+    def test_preference_persists_across_backend_restart(self) -> None:
+        first_search = self.client.post(
+            "/api/search",
+            json={"subject": "Machine Learning", "level": "undergraduate"},
+        ).json()
+        case_study_ids = [
+            card["id"]
+            for card in first_search["cards"]
+            if card["teaching_style"] == "case_study"
+        ]
+        self.client.post(
+            "/api/select",
+            json={"session_id": first_search["session_id"], "card_ids": case_study_ids},
+        )
+
+        self.client_context.__exit__(None, None, None)
+        self.client_context = None
+
+        with TestClient(app) as restarted_client:
+            second_search = restarted_client.post(
+                "/api/search",
+                json={"subject": "Applied Machine Learning", "level": "undergraduate"},
+            )
+
+        self.assertEqual(second_search.status_code, 200)
+        payload = second_search.json()
+        self.assertEqual(payload["profile_version"], 1)
+        self.assertEqual(
+            [card["teaching_style"] for card in payload["cards"][:2]],
+            ["case_study", "case_study"],
+        )
+
+    def test_invalid_input_uses_the_shared_error_envelope(self) -> None:
+        response = self.client.post("/api/search", json={"subject": "", "level": "undergraduate"})
+
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["error"]["code"], "invalid_input")
+        self.assertIn("retryable", response.json()["error"])
