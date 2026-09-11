@@ -36,3 +36,6 @@ pnpm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+
+# Generated design canvas (2.4MB editor payload; .dc.html sources are tracked)
+curriculumai-interface.html

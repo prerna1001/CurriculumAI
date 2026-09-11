@@ -1,0 +1,23 @@
+{
+  "artboards": [
+    { "file": "Start.dc.html", "x": 0, "y": 0, "w": 1120, "h": 660, "title": "Opening screen" },
+    { "file": "Main.dc.html", "x": 1240, "y": 0, "w": 1120, "h": 2020, "title": "After the second search" }
+  ],
+  "annotations": [
+    {
+      "id": "direction",
+      "x": 0,
+      "y": -170,
+      "w": 420,
+      "text": "Editorial academic direction.\n\nNewsreader (serif) for display and body copy, IBM Plex Sans for chrome and labels, IBM Plex Mono for figures. Warm paper ground, hairline rules, small-caps letterspaced labels.\n\nAccent is a tweak — try the indigo, forest and oxblood swatches above the artboard."
+    },
+    {
+      "id": "learning-moment",
+      "x": 1240,
+      "y": -170,
+      "w": 420,
+      "text": "The judged moment.\n\nThe rank deltas, the weight bars and the amber panel all say the same thing three ways, so a judge glancing at one screen can see the agent changed its mind.\n\nWeight bars are new: they render numbers already in preference_summary, nothing invented."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

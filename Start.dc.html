@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f7f4ee;
+      color: #1e1a16;
+      font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    a { color: #8a5a12; text-decoration: none; border-bottom: 1px solid #ddcaa6; }
+    a:hover { color: #6d4509; border-bottom-color: #8a5a12; }
+  </style>
+</helmet>
+
+<div style="max-width: 764px; margin: 0 auto; padding: 92px 24px 80px">
+
+  <div style="display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <div style="width: 22px; height: 1px; background: {{accent}}"></div>
+      <span style="font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 600; color: {{accent}}">Curriculum design · learning agent</span>
+    </div>
+    <h1 style="font-family: 'Newsreader', Georgia, 'Times New Roman', serif; font-size: 58px; font-weight: 500; letter-spacing: -0.025em; line-height: 1; margin: 0">CurriculumAI</h1>
+    <p style="font-family: 'Newsreader', Georgia, serif; font-style: italic; font-size: 20px; line-height: 1.5; color: #5c544a; margin: 4px 0 0; max-width: 30em; text-wrap: pretty">Pick the topics you would actually teach. The agents learn your teaching style from those choices, and go looking for different material next time.</p>
+  </div>
+
+  <div style="height: 1px; background: #e1d9cc; margin: 44px 0 32px"></div>
+
+  <div style="display: grid; grid-template-columns: 1fr 190px 150px; gap: 12px">
+    <div style="display: flex; flex-direction: column; gap: 7px">
+      <span style="font-size: 9.5px; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 600; color: #8b8177">Subject</span>
+      <div style="background: #fffdfa; border: 1px solid #ddd4c5; border-radius: 3px; padding: 12px 13px; font-size: 14.5px; color: #b3a794">What are you teaching?</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 7px">
+      <span style="font-size: 9.5px; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 600; color: #8b8177">Level</span>
+      <div style="background: #fffdfa; border: 1px solid #ddd4c5; border-radius: 3px; padding: 12px 13px; font-size: 14.5px; color: #1e1a16; display: flex; align-items: center; justify-content: space-between">
+        <span>Undergraduate</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8b8177" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 7px">
+      <span style="font-size: 9.5px; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 600; color: transparent">.</span>
+      <div style="background: #1e1a16; border-radius: 3px; padding: 13px; display: flex; align-items: center; justify-content: center">
+        <span style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; color: #f7f4ee">Find topics</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quiet explainer of the loop -->
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; margin-top: 64px; padding-top: 28px; border-top: 1px solid #e1d9cc">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: {{accent}}">01</span>
+      <h3 style="font-family: 'Newsreader', Georgia, serif; font-size: 17px; font-weight: 600; margin: 0; line-height: 1.3">Four sourced topics</h3>
+      <p style="font-size: 13px; line-height: 1.6; color: #6b6359; margin: 0; text-wrap: pretty">Searched from the live web, each one carrying the source it came from.</p>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: {{accent}}">02</span>
+      <h3 style="font-family: 'Newsreader', Georgia, serif; font-size: 17px; font-weight: 600; margin: 0; line-height: 1.3">You choose</h3>
+      <p style="font-size: 13px; line-height: 1.6; color: #6b6359; margin: 0; text-wrap: pretty">Your picks are the training signal — no forms, no settings to tune.</p>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: {{accent}}">03</span>
+      <h3 style="font-family: 'Newsreader', Georgia, serif; font-size: 17px; font-weight: 600; margin: 0; line-height: 1.3">It searches differently</h3>
+      <p style="font-size: 13px; line-height: 1.6; color: #6b6359; margin: 0; text-wrap: pretty">Next time the ranking moves and the query itself is rewritten.</p>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#8a5a12","options":["#8a5a12","#2d3b63","#2f5241","#7a2e2e"]}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#8a5a12' };
+  }
+}
+</script>
+</body>
+</html>

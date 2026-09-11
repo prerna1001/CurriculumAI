@@ -2,11 +2,71 @@
 
 :root {
   color-scheme: light;
+
+  --paper: #f7f4ee;
+  --card: #fffdfa;
+
+  --ink: #1e1a16;
+  --ink-2: #4a423a;
+  --ink-3: #6b6359;
+  --ink-4: #8b8177;
+  --ink-5: #b3a794;
+
+  --rule: #e1d9cc;
+  --rule-soft: #ece5d8;
+  --field: #ddd4c5;
+
+  --accent: #8a5a12;
+  --accent-ink: #3d2f18;
+  --accent-soft: #8a7a5e;
+  --accent-bg: #fbf4e6;
+  --accent-border: #ecdcbb;
+
+  --theory: #2d3b63;
+  --project: #2f5241;
 }
 
 body {
-  background: #faf9f7;
-  color: #1c1917;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-plex-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.serif {
+  font-family: var(--font-newsreader), Georgia, "Times New Roman", serif;
+}
+
+.mono {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+/* Small-caps letterspaced label — the editorial workhorse. */
+.label {
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid #ddcaa6;
+}
+
+a:hover {
+  color: #6d4509;
+  border-bottom-color: var(--accent);
+}
+
+input::placeholder {
+  color: var(--ink-5);
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--ink-4);
 }
