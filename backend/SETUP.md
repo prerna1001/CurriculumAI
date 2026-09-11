@@ -1,6 +1,6 @@
 # Backend setup
 
-Use Python 3.11 or later.
+Use Python 3.9 or later.
 
 ```bash
 python3 -m venv .venv

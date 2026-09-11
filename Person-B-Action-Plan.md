@@ -112,11 +112,11 @@ weights: theory=0.20, case_study=0.60, project=0.20
 
 ### 4. Fixture-backed routes
 
-- [ ] Implement `POST /api/search` with fixture candidates and saved session state.
-- [ ] Implement `POST /api/select` with validation and one atomic persistence transaction.
-- [ ] Return the original response for an identical replay of a committed selection.
-- [ ] Return `409 selection_already_committed` for a different selection on the same session.
-- [ ] Implement `POST /api/publish` state handling and call Person A's adapter stubs.
+- [x] Implement `POST /api/search` with fixture candidates and saved session state.
+- [x] Implement `POST /api/select` with validation and one atomic persistence transaction.
+- [x] Return the original response for an identical replay of a committed selection.
+- [x] Return `409 selection_already_committed` for a different selection on the same session.
+- [x] Implement fixture-mode `POST /api/publish` state handling; integrate Person A's adapter stubs in phase 4b.
 
 ### 5. Live agent workflow
 
