@@ -19,7 +19,8 @@ learning agents*).
    `case_study weight rose from 0.33 to 0.60` and watches case-study topics climb
    to the top.
 5. **Approve & publish** renders the saved outline in a Daytona sandbox and
-   publishes the artifact through One.
+   delivers it through One — the finished curriculum lands in the professor's
+   inbox as formatted HTML.
 
 Step 4 is the point of the project. Steps 1–3 exist to produce the signal, and
 step 5 is the closing beat.
@@ -54,7 +55,7 @@ comparison verifiable instead of anecdotal.
 | **You.com** | Live web search behind the research agent. Every topic card carries the source it came from. |
 | **CrewAI** | Two agents — researcher and outline writer — both receiving the learned profile. |
 | **Daytona** | Executes the renderer that turns a saved outline into a publishable HTML artifact. |
-| **One** | Publishes that artifact to an external destination with managed auth. |
+| **One** | Delivers that artifact to the professor's inbox through Gmail, with managed auth. |
 
 On Daytona specifically: the renderer is deterministic code we wrote, so the
 sandbox is isolation for untrusted *source content* — LLM output and scraped web
@@ -113,8 +114,21 @@ phases, gates, the A/B adapter boundary, and the degradation ladder.
 
 ## Status
 
-Lane A is built and verified in fixture mode: search, selection, the learning
-re-rank with visible rank deltas, the frozen outline surviving a subsequent
-search, and publish. The Daytona and One adapters are implemented with passing
-unit tests but have **not** yet been proven against the live services — that is
-the phase-1 readiness gate, and `contracts/one_action.md` records the outcome.
+**Lane A is complete and the phase-1 readiness gate passes.** A rendered outline
+has gone Daytona → One → inbox against the live services: ~2.2 s to create a
+sandbox, render and retrieve the HTML, then ~0.8 s to deliver it. The sandbox
+output is byte-identical to the local render, which is what proves the renderer
+is deterministic rather than merely working.
+
+The frontend is verified in fixture mode end to end: search, selection, the
+learning re-rank with visible rank deltas, the approved outline surviving a
+subsequent search, publish, and the error state when the backend is unreachable.
+38 unit tests pass.
+
+Google Drive was the intended publish destination and was ruled out during the
+gate — One exposes only Drive's metadata endpoint, which creates a named file
+containing nothing. `contracts/one_action.md` records the evidence, the working
+invocation and the measured timings.
+
+Still outstanding for A: integration against B's real backend, and the phase 6–7
+deliverables (backup recording, video, description, submission).

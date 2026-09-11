@@ -1,15 +1,19 @@
 """publish_artifact — lane A adapter.
 
 One has no Python SDK. Its documented programmatic surfaces are the Node CLI
-(`one actions execute`, with `--agent` for JSON output), a REST passthrough at
-api.withone.ai/v1/passthrough, and an MCP server. This adapter shells out to the
-CLI, which is the path with `--form-data` support for multipart uploads.
+(`one actions execute`, with `--agent` for JSON output), a REST passthrough, and
+an MCP server. This adapter shells out to the CLI.
 
-One is a *passthrough*: it proxies to the destination platform's own API, so the
-exact invocation and the shape of the receipt are decided by whichever
-destination is chosen at the phase-1 readiness gate. Everything that depends on
-that is isolated in `_build_command` and the two receipt paths below, and is
-recorded in `contracts/one_action.md`.
+DESTINATION: Gmail. Chosen at the phase-1 readiness gate after Google Drive was
+ruled out — One exposes only Drive's metadata endpoint (`POST /drive/v3/files`),
+which creates a named file with no contents, and does not expose Google's
+upload URI. Gmail's Send Email action takes `isHtml: true` and sends our
+rendered HTML as the message body, so the artifact arrives intact with no
+multipart upload involved. See contracts/one_action.md.
+
+Because the destination takes a JSON body rather than bytes, every parameter
+goes through `-d`. One's own CLI guidance is explicit that path and query
+parameters must NOT be put in the body flag; this action has neither.
 
 This adapter never writes to SQLite and never touches preferences — B owns all
 state (see the A/B boundary in the build plan).
@@ -22,7 +26,6 @@ import os
 import re
 import shutil
 import subprocess
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -46,7 +49,7 @@ def publish_artifact(publication_key: str, artifact: Artifact) -> Receipt:
     if os.getenv("CURRICULUMAI_PUBLISH_LOCAL") == "1":
         return _publish_local(publication_key, artifact)
 
-    return _publish_via_one(publication_key, artifact)
+    return _publish_via_one(artifact)
 
 
 # --- degradation tier 2 -----------------------------------------------------
@@ -55,8 +58,8 @@ def _publish_local(publication_key: str, artifact: Artifact) -> Receipt:
     """Write the artifact to disk instead of publishing it.
 
     Tier 2 of the degradation ladder: the professor still sees the real rendered
-    artifact, it just is not pushed to an external destination. Say so on camera
-    rather than implying a live publish.
+    artifact, it just is not delivered externally. Say so on camera rather than
+    implying a live publish.
     """
     LOCAL_DIR.mkdir(parents=True, exist_ok=True)
     suffix = ".html" if artifact.content_type == "text/html" else ".txt"
@@ -80,78 +83,74 @@ def _require(name: str) -> str:
     value = os.getenv(name)
     if not value:
         raise ConfigurationError(
-            f"{name} is not set. Fill in contracts/one_action.md at the phase-1 "
-            "readiness gate, then copy the values into .env."
+            f"{name} is not set. See contracts/one_action.md for where each "
+            "value comes from, then copy it into .env."
         )
     return value
 
 
-def _build_command(platform: str, action_id: str, connection_key: str,
-                   artifact: Artifact, upload_path: Path | None) -> list[str]:
-    """Construct the One CLI invocation.
+def _request_body(connection_key: str, artifact: Artifact) -> dict[str, Any]:
+    """Map the artifact onto the destination action's request body.
 
-    *** PHASE-1 VERIFY POINT ***
-    Binary input to One actions is not documented. Run
-    `one actions knowledge <platform> <actionId>` first, get one upload to
-    succeed by hand, then correct this function to match and paste the working
-    command into contracts/one_action.md.
+    An artifact carrying a structured payload is passed through as-is; one
+    carrying rendered bytes becomes the HTML body of an email.
     """
-    cmd = ["one", "--agent", "actions", "execute", platform, action_id, connection_key]
+    if artifact.payload is not None:
+        return {"connectionKey": connection_key, **artifact.payload}
 
-    if upload_path is not None:
-        field = os.getenv("ONE_FORM_FIELD", "file")
-        cmd += ["--form-data", f"{field}=@{upload_path}"]
-        cmd += ["--form-data", f"name={artifact.title}"]
-    else:
-        cmd += ["--input", json.dumps(artifact.payload or {}, ensure_ascii=False)]
+    assert artifact.content_bytes is not None
+    return {
+        "connectionKey": connection_key,
+        "to": _require("ONE_RECIPIENT"),
+        "subject": artifact.title,
+        "body": artifact.content_bytes.decode("utf-8"),
+        "isHtml": True,
+    }
 
-    return cmd
+
+def _build_command(platform: str, action_id: str, connection_key: str,
+                   artifact: Artifact) -> list[str]:
+    return [
+        "one", "--agent", "actions", "execute",
+        platform, action_id, connection_key,
+        "-d", json.dumps(_request_body(connection_key, artifact), ensure_ascii=False),
+    ]
 
 
-def _publish_via_one(publication_key: str, artifact: Artifact) -> Receipt:
+def _publish_via_one(artifact: Artifact) -> Receipt:
     if shutil.which("one") is None:
         raise ConfigurationError(
             "The One CLI is not on PATH. `npm i -g @withone/cli`, then "
             "`one login`. Or set CURRICULUMAI_PUBLISH_LOCAL=1 for tier 2."
         )
 
-    platform = _require("ONE_PLATFORM")
-    action_id = _require("ONE_ACTION_ID")
-    connection_key = _require("ONE_CONNECTION_KEY")
+    cmd = _build_command(
+        _require("ONE_PLATFORM"),
+        _require("ONE_ACTION_ID"),
+        _require("ONE_CONNECTION_KEY"),
+        artifact,
+    )
 
     # ONE_SECRET is only needed for headless use. If `one login` has already
     # stored credentials on this machine, the CLI authenticates without it.
-    env = dict(os.environ)
-
-    tmp_dir: tempfile.TemporaryDirectory | None = None
-    upload_path: Path | None = None
-    if artifact.content_bytes is not None:
-        tmp_dir = tempfile.TemporaryDirectory()
-        suffix = ".html" if artifact.content_type == "text/html" else ".bin"
-        upload_path = Path(tmp_dir.name) / f"{publication_key}{suffix}"
-        upload_path.write_bytes(artifact.content_bytes)
+    env = {**os.environ, "ONE_NO_TELEMETRY": "1"}
 
     try:
-        cmd = _build_command(platform, action_id, connection_key, artifact, upload_path)
-        try:
-            proc = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=CLI_TIMEOUT, env=env
-            )
-        except subprocess.TimeoutExpired as exc:
-            raise PublishError(
-                f"One CLI timed out after {CLI_TIMEOUT}s. Check the destination "
-                "folder before retrying — the upload may have landed."
-            ) from exc
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=CLI_TIMEOUT, env=env
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise PublishError(
+            f"One CLI timed out after {CLI_TIMEOUT}s. Check the destination "
+            "before retrying — the send may have gone through."
+        ) from exc
 
-        if proc.returncode != 0:
-            raise PublishError(
-                f"One CLI exited {proc.returncode}: {(proc.stderr or proc.stdout)[:500]}"
-            )
+    if proc.returncode != 0:
+        raise PublishError(
+            f"One CLI exited {proc.returncode}: {(proc.stderr or proc.stdout)[:500]}"
+        )
 
-        return _receipt_from(proc.stdout)
-    finally:
-        if tmp_dir is not None:
-            tmp_dir.cleanup()
+    return _receipt_from(proc.stdout)
 
 
 def _receipt_from(stdout: str) -> Receipt:
@@ -160,24 +159,30 @@ def _receipt_from(stdout: str) -> Receipt:
     except json.JSONDecodeError as exc:
         raise PublishError(f"One returned non-JSON output: {stdout[:500]}") from exc
 
-    id_path = os.getenv("ONE_RESULT_ID_PATH", "id")
-    url_path = os.getenv("ONE_RESULT_URL_PATH", "webViewLink")
-
-    external_id = _dig(data, id_path)
-    external_url = _dig(data, url_path)
-
-    if external_id is None or external_url is None:
+    external_id = _dig(data, os.getenv("ONE_RESULT_ID_PATH", "id"))
+    if external_id is None:
         raise PublishError(
-            "Published, but the receipt could not be read. Set "
-            f"ONE_RESULT_ID_PATH / ONE_RESULT_URL_PATH to match this response "
-            f"and record it in contracts/one_action.md: {json.dumps(data)[:500]}"
+            "Published, but no message id was found in the response. Set "
+            "ONE_RESULT_ID_PATH to match and record it in "
+            f"contracts/one_action.md: {json.dumps(data)[:500]}"
         )
+
+    # Gmail returns an id but no link, so the URL is built from a template.
+    url_path = os.getenv("ONE_RESULT_URL_PATH", "")
+    external_url = _dig(data, url_path) if url_path else None
+    if external_url is None:
+        template = os.getenv(
+            "ONE_RESULT_URL_TEMPLATE", "https://mail.google.com/mail/u/0/#all/{id}"
+        )
+        external_url = template.format(id=external_id)
 
     return Receipt(external_id=str(external_id), external_url=str(external_url), raw=data)
 
 
 def _dig(data: Any, dotted: str) -> Any:
     """Walk a dotted path, descending into the common `data`/`result` wrappers."""
+    if not dotted:
+        return None
     for root in (data, _child(data, "data"), _child(data, "result"), _child(data, "output")):
         if root is None:
             continue

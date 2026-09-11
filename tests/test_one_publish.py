@@ -63,60 +63,78 @@ def test_local_publish_handles_structured_payload(monkeypatch):
 
 # --- command construction --------------------------------------------------
 
-def test_command_is_a_list_not_a_shell_string(artifact, tmp_path):
-    upload = tmp_path / "a.html"
-    upload.write_bytes(b"x")
-    cmd = _build_command("drive", "act_1", "conn_1", artifact, upload)
+def test_command_is_a_list_not_a_shell_string(artifact, monkeypatch):
+    monkeypatch.setenv("ONE_RECIPIENT", "prof@example.org")
+    cmd = _build_command("gmail", "act_1", "conn_1", artifact)
 
     assert isinstance(cmd, list)
     assert all(isinstance(part, str) for part in cmd)
     assert cmd[:4] == ["one", "--agent", "actions", "execute"]
-    assert "--form-data" in cmd
+    # One's CLI guidance: body fields go through -d, never as path/query params.
+    assert cmd[-2] == "-d"
 
 
-def test_shell_metacharacters_in_title_stay_one_argument(tmp_path):
-    upload = tmp_path / "a.html"
-    upload.write_bytes(b"x")
-    nasty = Artifact(
-        title="; rm -rf / #", content_type="text/html", content_bytes=b"x"
-    )
-    cmd = _build_command("drive", "act_1", "conn_1", nasty, upload)
-    assert "name=; rm -rf / #" in cmd
+def test_rendered_html_becomes_the_email_body(artifact, monkeypatch):
+    monkeypatch.setenv("ONE_RECIPIENT", "prof@example.org")
+    body = json.loads(_build_command("gmail", "act_1", "conn_1", artifact)[-1])
+
+    assert body["to"] == "prof@example.org"
+    assert body["subject"] == artifact.title
+    assert body["isHtml"] is True
+    assert body["body"] == artifact.content_bytes.decode()
+    assert body["connectionKey"] == "conn_1"
 
 
-def test_structured_payload_uses_input_not_form_data():
+def test_shell_metacharacters_stay_inside_one_argument(monkeypatch):
+    monkeypatch.setenv("ONE_RECIPIENT", "prof@example.org")
+    nasty = Artifact(title="; rm -rf / #", content_type="text/html", content_bytes=b"x")
+    cmd = _build_command("gmail", "act_1", "conn_1", nasty)
+
+    assert json.loads(cmd[-1])["subject"] == "; rm -rf / #"
+    assert "; rm -rf / #" not in cmd  # only ever inside the JSON payload
+
+
+def test_structured_payload_passes_through_untouched():
     cmd = _build_command(
         "notion", "act_2", "conn_1",
         Artifact(title="t", content_type="application/json", payload={"blocks": []}),
-        None,
     )
-    assert "--input" in cmd
-    assert "--form-data" not in cmd
+    assert json.loads(cmd[-1]) == {"connectionKey": "conn_1", "blocks": []}
+
+
+def test_missing_recipient_is_reported(artifact, monkeypatch):
+    monkeypatch.delenv("ONE_RECIPIENT", raising=False)
+    with pytest.raises(ConfigurationError, match="ONE_RECIPIENT"):
+        _build_command("gmail", "act_1", "conn_1", artifact)
 
 
 # --- receipt parsing -------------------------------------------------------
 
 def test_receipt_read_from_flat_response(monkeypatch):
     monkeypatch.setenv("ONE_RESULT_ID_PATH", "id")
-    monkeypatch.setenv("ONE_RESULT_URL_PATH", "webViewLink")
-    receipt = _receipt_from(json.dumps({"id": "abc", "webViewLink": "https://x.test/abc"}))
-    assert (receipt.external_id, receipt.external_url) == ("abc", "https://x.test/abc")
+    monkeypatch.delenv("ONE_RESULT_URL_PATH", raising=False)
+    monkeypatch.setenv("ONE_RESULT_URL_TEMPLATE", "https://mail.test/#all/{id}")
+    receipt = _receipt_from(json.dumps({"id": "abc", "threadId": "t1"}))
+    assert (receipt.external_id, receipt.external_url) == ("abc", "https://mail.test/#all/abc")
 
 
 def test_receipt_read_through_data_wrapper(monkeypatch):
     monkeypatch.setenv("ONE_RESULT_ID_PATH", "id")
-    monkeypatch.setenv("ONE_RESULT_URL_PATH", "webViewLink")
-    receipt = _receipt_from(
-        json.dumps({"data": {"id": "abc", "webViewLink": "https://x.test/abc"}})
-    )
+    receipt = _receipt_from(json.dumps({"data": {"id": "abc"}}))
     assert receipt.external_id == "abc"
+
+
+def test_explicit_url_path_wins_over_template(monkeypatch):
+    monkeypatch.setenv("ONE_RESULT_ID_PATH", "id")
+    monkeypatch.setenv("ONE_RESULT_URL_PATH", "webViewLink")
+    receipt = _receipt_from(json.dumps({"id": "abc", "webViewLink": "https://x.test/abc"}))
+    assert receipt.external_url == "https://x.test/abc"
 
 
 def test_unreadable_receipt_names_the_fix(monkeypatch):
     monkeypatch.setenv("ONE_RESULT_ID_PATH", "nope")
-    monkeypatch.setenv("ONE_RESULT_URL_PATH", "alsoNope")
     with pytest.raises(PublishError, match="one_action.md"):
-        _receipt_from(json.dumps({"id": "abc"}))
+        _receipt_from(json.dumps({"messageId": "abc"}))
 
 
 def test_non_json_output_is_reported(monkeypatch):
