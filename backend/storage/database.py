@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS candidate (
 CREATE TABLE IF NOT EXISTS selection (
     id TEXT PRIMARY KEY,
     session_id TEXT NOT NULL UNIQUE REFERENCES session(id),
+    selected_card_ids_json TEXT NOT NULL DEFAULT '[]',
     outline_json TEXT NOT NULL,
     response_json TEXT NOT NULL,
     created_at TEXT NOT NULL
@@ -86,6 +87,14 @@ def initialize_database(database_path: str) -> None:
     with connect(database_path) as connection:
         connection.execute("PRAGMA journal_mode = WAL")
         connection.executescript(SCHEMA)
+        selection_columns = {
+            row["name"] for row in connection.execute("PRAGMA table_info(selection)")
+        }
+        if "selected_card_ids_json" not in selection_columns:
+            connection.execute(
+                "ALTER TABLE selection ADD COLUMN selected_card_ids_json "
+                "TEXT NOT NULL DEFAULT '[]'"
+            )
         connection.execute("INSERT OR IGNORE INTO profile (id, version) VALUES (1, 0)")
         connection.executemany(
             """
