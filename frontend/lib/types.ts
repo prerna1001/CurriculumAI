@@ -56,6 +56,29 @@ export interface ErrorBody {
   error: { code: string; message: string; retryable: boolean };
 }
 
+export interface EvalPoint {
+  n: number;
+  version: number;
+  weights: Record<TeachingStyle, number>;
+  top2_share: number | null;
+  mean_rank: number | null;
+  changed: boolean | null;
+  at: string | null;
+}
+
+export interface EvalsResponse {
+  selections: number;
+  profile_version: number;
+  current_weights: Record<TeachingStyle, number>;
+  preference_summary: string;
+  points: EvalPoint[];
+  top2_share_first: number | null;
+  top2_share_latest: number | null;
+  top2_share_delta: number | null;
+  unchanged_selections: number;
+  replay_consistent: boolean;
+}
+
 export const STYLE_LABEL: Record<TeachingStyle, string> = {
   theory: "Theory",
   case_study: "Case study",

@@ -1,5 +1,6 @@
 import type {
   ErrorBody,
+  EvalsResponse,
   PublishResponse,
   SearchResponse,
   SelectResponse,
@@ -65,3 +66,13 @@ export const select = (sessionId: string, cardIds: string[]) =>
 
 export const publish = (selectionId: string) =>
   post<PublishResponse>("publish", { selection_id: selectionId });
+
+export async function evals(): Promise<EvalsResponse | null> {
+  // The panel is supporting evidence — it never interrupts the main flow.
+  try {
+    const response = await fetch(`${BASE}/api/evals`);
+    return response.ok ? ((await response.json()) as EvalsResponse) : null;
+  } catch {
+    return null;
+  }
+}

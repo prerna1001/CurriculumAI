@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ImprovementPanel from "./ImprovementPanel";
 import { ApiError, publish, search, select } from "@/lib/api";
 import {
   STYLE_LABEL,
@@ -37,12 +38,17 @@ export default function Home() {
   const [selection, setSelection] = useState<SelectResponse | null>(null);
   const [published, setPublished] = useState<PublishResponse | null>(null);
 
-  const [busy, setBusy] = useState<"search" | "select" | "publish" | null>(null);
+  const [busy, setBusy] = useState<"search" | "select" | "publish" | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
 
   const searchCount = previousOrder ? 2 : result ? 1 : 0;
 
-  async function run<T>(kind: "search" | "select" | "publish", fn: () => Promise<T>) {
+  async function run<T>(
+    kind: "search" | "select" | "publish",
+    fn: () => Promise<T>,
+  ) {
     setBusy(kind);
     setError(null);
     try {
@@ -67,7 +73,9 @@ export default function Home() {
 
   async function onCommit() {
     if (!result || chosen.size === 0) return;
-    const next = await run("select", () => select(result.session_id, [...chosen]));
+    const next = await run("select", () =>
+      select(result.session_id, [...chosen]),
+    );
     if (!next) return;
     setSelection(next);
     setPublished(null);
@@ -97,290 +105,346 @@ export default function Home() {
   }
 
   return (
-    <main className="mx-auto max-w-[764px] px-6 pb-24 pt-16">
-      <header className="flex flex-col gap-3.5">
-        <div className="flex items-center gap-2.5">
-          <div className="h-px w-[22px]" style={{ background: "var(--accent)" }} />
-          <span className="label" style={{ color: "var(--accent)" }}>
-            Curriculum design · learning agent
-          </span>
-        </div>
-        <h1 className="serif m-0 text-[46px] font-medium leading-none tracking-[-0.02em]">
-          CurriculumAI
-        </h1>
-        <p
-          className="serif m-0 max-w-[33em] text-[18px] italic leading-[1.5]"
-          style={{ color: "var(--ink-2)", textWrap: "pretty" }}
-        >
-          Pick the topics you would actually teach. The agents learn your teaching
-          style from those choices, and go looking for different material next time.
-        </p>
-      </header>
-
-      <div className="my-8 h-px" style={{ background: "var(--rule)" }} />
-
-      <form onSubmit={onSearch} className="grid gap-3 sm:grid-cols-[1fr_190px_150px]">
-        <Field label="Subject">
-          <input
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            placeholder="What are you teaching?"
-            aria-label="Subject"
-            className="w-full rounded-[3px] border px-3.5 py-3 text-[14.5px]"
-            style={{ background: "var(--card)", borderColor: "var(--field)" }}
-          />
-        </Field>
-        <Field label="Level">
-          <select
-            value={level}
-            onChange={(e) => setLevel(e.target.value)}
-            aria-label="Level"
-            className="w-full appearance-none rounded-[3px] border px-3.5 py-3 text-[14.5px]"
-            style={{ background: "var(--card)", borderColor: "var(--field)" }}
-          >
-            <option value="introductory">Introductory</option>
-            <option value="undergraduate">Undergraduate</option>
-            <option value="graduate">Graduate</option>
-          </select>
-        </Field>
-        <Field>
-          <button
-            type="submit"
-            disabled={busy !== null || !subject.trim()}
-            className="label w-full rounded-[3px] px-4 py-3.5 disabled:opacity-35"
-            style={{ background: "var(--ink)", color: "var(--paper)" }}
-          >
-            {busy === "search"
-              ? "Researching…"
-              : searchCount === 0
-                ? "Find topics"
-                : "Search again"}
-          </button>
-        </Field>
-      </form>
-
-      {error && (
-        <p
-          className="mt-6 rounded-[3px] border px-4 py-3 text-sm"
-          style={{ background: "#fdf2f0", borderColor: "#e8cdc6", color: "#8a3323" }}
-        >
-          {error}
-        </p>
-      )}
-
-      {busy === "search" && (
-        <p className="mt-6 text-[13px]" style={{ color: "var(--ink-4)" }}>
-          Searching the live web and drafting candidates — this takes a moment.
-        </p>
-      )}
-
-      {result && (
-        <section className="mt-12">
-          <div
-            className="flex items-baseline justify-between gap-4 border-b pb-3"
-            style={{ borderColor: "var(--ink)" }}
-          >
-            <span className="label" style={{ fontSize: "11px" }}>
-              Recommended topics
-            </span>
-            <span className="mono text-[11px]" style={{ color: "var(--ink-4)" }}>
-              profile v{result.profile_version}
+    <div className="mx-auto grid max-w-[764px] grid-cols-1 gap-12 px-6 pb-24 pt-16 xl:max-w-[1136px] xl:grid-cols-[764px_300px]">
+      <main>
+        <header className="flex flex-col gap-3.5">
+          <div className="flex items-center gap-2.5">
+            <div
+              className="h-px w-[22px]"
+              style={{ background: "var(--accent)" }}
+            />
+            <span className="label" style={{ color: "var(--accent)" }}>
+              Curriculum design · learning agent
             </span>
           </div>
+          <h1 className="serif m-0 text-[46px] font-medium leading-none tracking-[-0.02em]">
+            CurriculumAI
+          </h1>
+          <p
+            className="serif m-0 max-w-[33em] text-[18px] italic leading-[1.5]"
+            style={{ color: "var(--ink-2)", textWrap: "pretty" }}
+          >
+            Pick the topics you would actually teach. The agents learn your
+            teaching style from those choices, and go looking for different
+            material next time.
+          </p>
+        </header>
 
-          <div className="mt-[18px] mb-6 flex flex-wrap items-start justify-between gap-8">
-            <p
-              className="serif m-0 max-w-[26em] text-[16px] leading-[1.5]"
-              style={{ color: "var(--ink-2)" }}
+        <div className="my-8 h-px" style={{ background: "var(--rule)" }} />
+
+        <form
+          onSubmit={onSearch}
+          className="grid gap-3 sm:grid-cols-[1fr_190px_150px]"
+        >
+          <Field label="Subject">
+            <input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="What are you teaching?"
+              aria-label="Subject"
+              className="w-full rounded-[3px] border px-3.5 py-3 text-[14.5px]"
+              style={{ background: "var(--card)", borderColor: "var(--field)" }}
+            />
+          </Field>
+          <Field label="Level">
+            <select
+              value={level}
+              onChange={(e) => setLevel(e.target.value)}
+              aria-label="Level"
+              className="w-full appearance-none rounded-[3px] border px-3.5 py-3 text-[14.5px]"
+              style={{ background: "var(--card)", borderColor: "var(--field)" }}
             >
-              {result.preference_summary}
-            </p>
-            <WeightBars summary={result.preference_summary} />
-          </div>
-
-          <ul className="flex list-none flex-col gap-0.5 p-0">
-            {result.cards.map((card, index) => (
-              <TopicCard
-                key={card.id}
-                card={card}
-                index={index}
-                delta={rankDelta(card.title, index)}
-                checked={chosen.has(card.id)}
-                onToggle={() => toggle(card.id)}
-              />
-            ))}
-          </ul>
-
-          <div className="mt-6 flex flex-wrap items-center gap-4">
+              <option value="introductory">Introductory</option>
+              <option value="undergraduate">Undergraduate</option>
+              <option value="graduate">Graduate</option>
+            </select>
+          </Field>
+          <Field>
             <button
-              onClick={onCommit}
-              disabled={busy !== null || chosen.size === 0}
-              className="label rounded-[3px] px-5 py-3 disabled:opacity-35"
+              type="submit"
+              disabled={busy !== null || !subject.trim()}
+              className="label w-full rounded-[3px] px-4 py-3.5 disabled:opacity-35"
               style={{ background: "var(--ink)", color: "var(--paper)" }}
             >
-              {busy === "select"
-                ? "Saving…"
-                : `Use these topics${chosen.size ? ` · ${chosen.size}` : ""}`}
+              {busy === "search"
+                ? "Researching…"
+                : searchCount === 0
+                  ? "Find topics"
+                  : "Search again"}
             </button>
-            <span className="text-[12.5px]" style={{ color: "var(--ink-4)" }}>
-              Your picks train the next search.
-            </span>
-          </div>
-        </section>
-      )}
+          </Field>
+        </form>
 
-      {selection && (
-        <>
-          <div
-            className="mt-13 rounded-[3px] border px-6 py-6"
+        {error && (
+          <p
+            className="mt-6 rounded-[3px] border px-4 py-3 text-sm"
             style={{
-              background: "var(--accent-bg)",
-              borderColor: "var(--accent-border)",
-              borderLeft: "3px solid var(--accent)",
+              background: "#fdf2f0",
+              borderColor: "#e8cdc6",
+              color: "#8a3323",
             }}
           >
-            <div className="mb-3 flex items-center gap-2.5">
-              <TrendIcon />
-              <span className="label" style={{ fontSize: "10px", color: "var(--accent)" }}>
-                What the agents learned
-              </span>
-            </div>
-            <p
-              className="serif m-0 text-[21px] leading-[1.4] tracking-[-0.005em]"
-              style={{ color: "var(--accent-ink)", textWrap: "pretty" }}
-            >
-              {selection.learned_change}
-            </p>
-            <p
-              className="mt-2.5 text-[13px] leading-[1.6]"
-              style={{ color: "var(--accent-soft)" }}
-            >
-              {selection.preference_summary} The next search reweights the ranking{" "}
-              <em>and</em> rewrites the query sent to the web.
-            </p>
-          </div>
+            {error}
+          </p>
+        )}
 
-          <section
-            className="mt-4 rounded-[3px] border px-9 py-8"
-            style={{ background: "var(--card)", borderColor: "var(--field)" }}
-          >
+        {busy === "search" && (
+          <p className="mt-6 text-[13px]" style={{ color: "var(--ink-4)" }}>
+            Searching the live web and drafting candidates — this takes a
+            moment.
+          </p>
+        )}
+
+        {result && (
+          <section className="mt-12">
             <div
-              className="flex items-baseline justify-between gap-5 border-b pb-4"
+              className="flex items-baseline justify-between gap-4 border-b pb-3"
               style={{ borderColor: "var(--ink)" }}
             >
-              <span className="label" style={{ fontSize: "10px", color: "var(--ink-4)" }}>
-                Approved outline
+              <span className="label" style={{ fontSize: "11px" }}>
+                Recommended topics
               </span>
-              <span className="mono text-[10px]" style={{ color: "var(--ink-5)" }}>
-                {selection.selection_id.slice(0, 12)} · immutable
+              <span
+                className="mono text-[11px]"
+                style={{ color: "var(--ink-4)" }}
+              >
+                profile v{result.profile_version}
               </span>
             </div>
 
-            <h2
-              className="serif mt-5 max-w-[20em] text-[28px] font-medium leading-[1.22] tracking-[-0.015em]"
-              style={{ textWrap: "pretty" }}
-            >
-              {selection.outline.title}
-            </h2>
+            <div className="mt-[18px] mb-6 flex flex-wrap items-start justify-between gap-8">
+              <p
+                className="serif m-0 max-w-[26em] text-[16px] leading-[1.5]"
+                style={{ color: "var(--ink-2)" }}
+              >
+                {result.preference_summary}
+              </p>
+              <WeightBars summary={result.preference_summary} />
+            </div>
 
-            <ol className="mt-7 flex list-none flex-col gap-6 p-0">
-              {selection.outline.sessions.map((session, i) => (
-                <li key={i} className="flex flex-col gap-6">
-                  {i > 0 && <div className="h-px" style={{ background: "var(--rule-soft)" }} />}
-                  <div className="flex gap-5">
-                    <span
-                      className="mono shrink-0 pt-1 text-[12px]"
-                      style={{ color: "var(--accent)" }}
-                    >
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <div className="flex min-w-0 flex-col gap-3.5">
-                      <h3 className="serif m-0 text-[18px] font-semibold leading-[1.3]">
-                        {session.topic}
-                      </h3>
-                      <Detail label="Activity">{session.activity}</Detail>
-                      <Detail label="Learning objective">
-                        {session.learning_objective}
-                      </Detail>
-                      <div className="flex flex-col gap-1.5">
-                        <span className="label" style={{ fontSize: "9px", color: "var(--ink-5)" }}>
-                          {session.source_references.length === 1 ? "Source" : "Sources"}
-                        </span>
-                        <div className="flex flex-col gap-1">
-                          {session.source_references.map((ref) => (
-                            <a
-                              key={ref.source_id}
-                              href={ref.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="self-start break-all text-[12.5px]"
-                            >
-                              {sourceLabel(ref.url)} ↗
-                            </a>
-                          ))}
+            <ul className="flex list-none flex-col gap-0.5 p-0">
+              {result.cards.map((card, index) => (
+                <TopicCard
+                  key={card.id}
+                  card={card}
+                  index={index}
+                  delta={rankDelta(card.title, index)}
+                  checked={chosen.has(card.id)}
+                  onToggle={() => toggle(card.id)}
+                />
+              ))}
+            </ul>
+
+            <div className="mt-6 flex flex-wrap items-center gap-4">
+              <button
+                onClick={onCommit}
+                disabled={busy !== null || chosen.size === 0}
+                className="label rounded-[3px] px-5 py-3 disabled:opacity-35"
+                style={{ background: "var(--ink)", color: "var(--paper)" }}
+              >
+                {busy === "select"
+                  ? "Saving…"
+                  : `Use these topics${chosen.size ? ` · ${chosen.size}` : ""}`}
+              </button>
+              <span className="text-[12.5px]" style={{ color: "var(--ink-4)" }}>
+                Your picks train the next search.
+              </span>
+            </div>
+          </section>
+        )}
+
+        {selection && (
+          <>
+            <div
+              className="mt-13 rounded-[3px] border px-6 py-6"
+              style={{
+                background: "var(--accent-bg)",
+                borderColor: "var(--accent-border)",
+                borderLeft: "3px solid var(--accent)",
+              }}
+            >
+              <div className="mb-3 flex items-center gap-2.5">
+                <TrendIcon />
+                <span
+                  className="label"
+                  style={{ fontSize: "10px", color: "var(--accent)" }}
+                >
+                  What the agents learned
+                </span>
+              </div>
+              <p
+                className="serif m-0 text-[21px] leading-[1.4] tracking-[-0.005em]"
+                style={{ color: "var(--accent-ink)", textWrap: "pretty" }}
+              >
+                {selection.learned_change}
+              </p>
+              <p
+                className="mt-2.5 text-[13px] leading-[1.6]"
+                style={{ color: "var(--accent-soft)" }}
+              >
+                {selection.preference_summary} The next search reweights the
+                ranking <em>and</em> rewrites the query sent to the web.
+              </p>
+            </div>
+
+            <section
+              className="mt-4 rounded-[3px] border px-9 py-8"
+              style={{ background: "var(--card)", borderColor: "var(--field)" }}
+            >
+              <div
+                className="flex items-baseline justify-between gap-5 border-b pb-4"
+                style={{ borderColor: "var(--ink)" }}
+              >
+                <span
+                  className="label"
+                  style={{ fontSize: "10px", color: "var(--ink-4)" }}
+                >
+                  Approved outline
+                </span>
+                <span
+                  className="mono text-[10px]"
+                  style={{ color: "var(--ink-5)" }}
+                >
+                  {selection.selection_id.slice(0, 12)} · immutable
+                </span>
+              </div>
+
+              <h2
+                className="serif mt-5 max-w-[20em] text-[28px] font-medium leading-[1.22] tracking-[-0.015em]"
+                style={{ textWrap: "pretty" }}
+              >
+                {selection.outline.title}
+              </h2>
+
+              <ol className="mt-7 flex list-none flex-col gap-6 p-0">
+                {selection.outline.sessions.map((session, i) => (
+                  <li key={i} className="flex flex-col gap-6">
+                    {i > 0 && (
+                      <div
+                        className="h-px"
+                        style={{ background: "var(--rule-soft)" }}
+                      />
+                    )}
+                    <div className="flex gap-5">
+                      <span
+                        className="mono shrink-0 pt-1 text-[12px]"
+                        style={{ color: "var(--accent)" }}
+                      >
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <div className="flex min-w-0 flex-col gap-3.5">
+                        <h3 className="serif m-0 text-[18px] font-semibold leading-[1.3]">
+                          {session.topic}
+                        </h3>
+                        <Detail label="Activity">{session.activity}</Detail>
+                        <Detail label="Learning objective">
+                          {session.learning_objective}
+                        </Detail>
+                        <div className="flex flex-col gap-1.5">
+                          <span
+                            className="label"
+                            style={{ fontSize: "9px", color: "var(--ink-5)" }}
+                          >
+                            {session.source_references.length === 1
+                              ? "Source"
+                              : "Sources"}
+                          </span>
+                          <div className="flex flex-col gap-1">
+                            {session.source_references.map((ref) => (
+                              <a
+                                key={ref.source_id}
+                                href={ref.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="self-start break-all text-[12.5px]"
+                              >
+                                {sourceLabel(ref.url)} ↗
+                              </a>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </li>
-              ))}
-            </ol>
+                  </li>
+                ))}
+              </ol>
 
-            <div
-              className="mt-8 flex flex-wrap items-center gap-4 border-t pt-6"
-              style={{ borderColor: "var(--rule-soft)" }}
-            >
-              <button
-                onClick={onPublish}
-                disabled={busy !== null || published?.status === "published"}
-                className="label flex items-center gap-2.5 rounded-[3px] px-5 py-3 disabled:opacity-45"
-                style={{ background: "var(--accent)", color: "var(--card)" }}
+              <div
+                className="mt-8 flex flex-wrap items-center gap-4 border-t pt-6"
+                style={{ borderColor: "var(--rule-soft)" }}
               >
-                <SendIcon />
-                {busy === "publish"
-                  ? "Publishing…"
-                  : published?.status === "published"
-                    ? "Published"
-                    : "Approve & publish"}
-              </button>
-
-              {published?.status === "published" && published.external_url ? (
-                <a
-                  href={published.external_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[12.5px]"
+                <button
+                  onClick={onPublish}
+                  disabled={busy !== null || published?.status === "published"}
+                  className="label flex items-center gap-2.5 rounded-[3px] px-5 py-3 disabled:opacity-45"
+                  style={{ background: "var(--accent)", color: "var(--card)" }}
                 >
-                  Open published artifact ↗
-                </a>
-              ) : published?.status === "publishing" ? (
-                <span className="text-[12.5px]" style={{ color: "var(--ink-4)" }}>
-                  Still publishing…
-                </span>
-              ) : published?.status === "failed" ? (
-                <span className="text-[12.5px]" style={{ color: "#8a3323" }}>
-                  Publishing failed.
-                </span>
-              ) : (
-                <span className="text-[12.5px]" style={{ color: "var(--ink-4)" }}>
-                  Rendered in a sandbox, delivered to your inbox.
-                </span>
-              )}
-            </div>
-          </section>
-        </>
-      )}
-    </main>
+                  <SendIcon />
+                  {busy === "publish"
+                    ? "Publishing…"
+                    : published?.status === "published"
+                      ? "Published"
+                      : "Approve & publish"}
+                </button>
+
+                {published?.status === "published" && published.external_url ? (
+                  <a
+                    href={published.external_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[12.5px]"
+                  >
+                    Open published artifact ↗
+                  </a>
+                ) : published?.status === "publishing" ? (
+                  <span
+                    className="text-[12.5px]"
+                    style={{ color: "var(--ink-4)" }}
+                  >
+                    Still publishing…
+                  </span>
+                ) : published?.status === "failed" ? (
+                  <span className="text-[12.5px]" style={{ color: "#8a3323" }}>
+                    Publishing failed.
+                  </span>
+                ) : (
+                  <span
+                    className="text-[12.5px]"
+                    style={{ color: "var(--ink-4)" }}
+                  >
+                    Rendered in a sandbox, delivered to your inbox.
+                  </span>
+                )}
+              </div>
+            </section>
+          </>
+        )}
+      </main>
+
+      <div className="xl:sticky xl:top-16 xl:self-start">
+        <ImprovementPanel refreshKey={selection?.profile_version ?? 0} />
+      </div>
+    </div>
   );
 }
 
 /* ---------- pieces ---------- */
 
-function Field({ label, children }: { label?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-[7px]">
       {/* Keeps the button baseline aligned with the labelled inputs beside it. */}
-      <span className="label" style={{ color: "var(--ink-4)" }} aria-hidden={!label}>
+      <span
+        className="label"
+        style={{ color: "var(--ink-4)" }}
+        aria-hidden={!label}
+      >
         {label ?? " "}
       </span>
       {children}
@@ -388,10 +452,19 @@ function Field({ label, children }: { label?: string; children: React.ReactNode 
   );
 }
 
-function Detail({ label, children }: { label: string; children: React.ReactNode }) {
+function Detail({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="label" style={{ fontSize: "9px", color: "var(--ink-5)" }}>
+      <span
+        className="label"
+        style={{ fontSize: "9px", color: "var(--ink-5)" }}
+      >
         {label}
       </span>
       <p
@@ -447,14 +520,20 @@ function TopicCard({
       </div>
 
       <div className="flex min-w-0 flex-col gap-[7px]">
-        <label htmlFor={inputId} className="flex cursor-pointer flex-col gap-[7px]">
+        <label
+          htmlFor={inputId}
+          className="flex cursor-pointer flex-col gap-[7px]"
+        >
           <span className="flex flex-wrap items-center gap-3">
             <span className="flex items-center gap-1.5">
               <span
                 className="size-[5px] rounded-full"
                 style={{ background: STYLE_COLOR[card.teaching_style] }}
               />
-              <span className="label" style={{ color: STYLE_COLOR[card.teaching_style] }}>
+              <span
+                className="label"
+                style={{ color: STYLE_COLOR[card.teaching_style] }}
+              >
                 {STYLE_LABEL[card.teaching_style]}
               </span>
             </span>
@@ -520,12 +599,15 @@ function DeltaTag({ delta }: { delta: number }) {
  * nothing when the wording does not match — never a wrong bar.
  */
 function WeightBars({ summary }: { summary: string }) {
-  const weights = [...summary.matchAll(/([a-z_]+)\s*\(([01]?\.\d+)\)/gi)].map((m) => ({
-    style: m[1] as TeachingStyle,
-    value: Number(m[2]),
-  }));
+  const weights = [...summary.matchAll(/([a-z_]+)\s*\(([01]?\.\d+)\)/gi)].map(
+    (m) => ({
+      style: m[1] as TeachingStyle,
+      value: Number(m[2]),
+    }),
+  );
 
-  if (weights.length !== 3 || weights.some((w) => !STYLE_LABEL[w.style])) return null;
+  if (weights.length !== 3 || weights.some((w) => !STYLE_LABEL[w.style]))
+    return null;
 
   return (
     <div className="flex w-[188px] shrink-0 flex-col gap-[7px]">
@@ -533,7 +615,11 @@ function WeightBars({ summary }: { summary: string }) {
         <div key={w.style} className="flex items-center gap-2.5">
           <span
             className="label w-14 shrink-0 text-right"
-            style={{ fontSize: "9px", letterSpacing: "0.08em", color: "var(--ink-4)" }}
+            style={{
+              fontSize: "9px",
+              letterSpacing: "0.08em",
+              color: "var(--ink-4)",
+            }}
           >
             {SHORT_LABEL[w.style]}
           </span>
@@ -549,7 +635,10 @@ function WeightBars({ summary }: { summary: string }) {
               }}
             />
           </div>
-          <span className="mono w-6 text-[9.5px]" style={{ color: "var(--ink-2)" }}>
+          <span
+            className="mono w-6 text-[9.5px]"
+            style={{ color: "var(--ink-2)" }}
+          >
             {w.value.toFixed(2).replace("0.", ".")}
           </span>
         </div>
